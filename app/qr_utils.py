@@ -1,15 +1,16 @@
-"""二维码票根：短时有效 + 持票人签名，验票时与链上状态交叉校验。
+"""QR ticket stub: short-lived + signed by the holder, cross-checked against on-chain state at check-in.
 
-设计（对应成员 4 的 T13/T14）：
-* 二维码里不是裸 tokenId，而是一段 JSON：
+Design (corresponds to Member 4's T13/T14):
+* The QR code carries a JSON payload rather than a bare tokenId:
       {v, token_id, holder, nonce, issued_at, expires_at, sig}
-* sig = 持票人私钥对规范化文本做 EIP-191 (personal_sign) 签名。
-* 验票时重新拼出同一段文本并恢复签名地址，要求：
-      1. 签名地址 == payload.holder
-      2. payload.holder == 链上 ownerOf(tokenId)
-      3. 未过期（默认 180 秒）
-      4. 门票尚未核销
-  任一不满足即拒绝，因此截图/转发二维码在过期后失效，旧票主也无法复用。
+* sig = the holder's private key signing canonical text with EIP-191 (personal_sign).
+* At check-in the same text is rebuilt and the signing address recovered; all of the following must hold:
+      1. signing address == payload.holder
+      2. payload.holder == on-chain ownerOf(tokenId)
+      3. not expired (180 seconds by default)
+      4. ticket not checked in yet
+  Any failure rejects the ticket, so a screenshot/forwarded QR code dies after expiry and the
+  previous owner cannot reuse it either.
 """
 
 from __future__ import annotations
@@ -26,11 +27,11 @@ from eth_account.messages import encode_defunct
 
 VERSION = 1
 DOMAIN = "FTEC5520-TICKET"
-DEFAULT_TTL = 180  # 秒
+DEFAULT_TTL = 180  # seconds
 
 
 def _canonical_text(payload: dict[str, Any]) -> str:
-    """签名原文：字段顺序固定，验签端用同样方式重建，任何字段被改都会验签失败。"""
+    """Signed plaintext: fixed field order, rebuilt the same way by the verifier, so any tampered field fails verification."""
     return "\n".join(
         [
             f"{DOMAIN}/v{payload['v']}",
@@ -49,7 +50,7 @@ def create_ticket_qr(
     private_key: str,
     ttl: int = DEFAULT_TTL,
 ) -> dict[str, Any]:
-    """由持票人钱包对票根签名，返回可直接编码进二维码的 payload。"""
+    """Sign the ticket stub with the holder's wallet and return a payload that can be encoded into a QR code directly."""
     issued_at = int(time.time())
     payload = {
         "v": VERSION,
@@ -80,17 +81,17 @@ def parse_payload(raw: str) -> dict[str, Any]:
 
 
 def verify_payload(payload: dict[str, Any], ticket: dict[str, Any] | None, now: int | None = None) -> dict[str, Any]:
-    """校验票根，返回逐项检查结果（不含链上写操作）。"""
+    """Validate the ticket stub and return the per-check results (no on-chain write)."""
     now = int(time.time()) if now is None else int(now)
     checks: list[dict[str, Any]] = []
 
     def add(name: str, ok: bool, detail: str) -> None:
         checks.append({"check": name, "ok": bool(ok), "detail": detail})
 
-    # 1. 版本
+    # 1. Version
     add("Payload version", payload.get("v") == VERSION, f"v={payload.get('v')}")
 
-    # 2. 签名
+    # 2. Signature
     try:
         recovered = Account.recover_message(
             encode_defunct(text=_canonical_text(payload)), signature=payload["sig"]
@@ -101,15 +102,15 @@ def verify_payload(payload: dict[str, Any], ticket: dict[str, Any] | None, now: 
     signed_ok = recovered.lower() == str(payload.get("holder", "")).lower()
     add("Signature matches holder", signed_ok, f"holder={payload.get('holder', '')[:10]}… recovered={recovered or '—'}")
 
-    # 3. 有效期
+    # 3. Validity window
     expires_at = int(payload.get("expires_at", 0))
     add("Not expired", expires_at > now, f"{max(expires_at - now, 0)} s left" if expires_at > now else "expired")
 
-    # 4. 链上票主
+    # 4. On-chain owner
     owner_ok = bool(ticket) and ticket.get("owner", "").lower() == str(payload.get("holder", "")).lower()
     add("Matches on-chain ownerOf", owner_ok, f"ownerOf={ticket.get('owner') if ticket else '—'}")
 
-    # 5. 是否已核销
+    # 5. Whether it is already checked in
     unused = bool(ticket) and not ticket.get("used")
     add("Ticket not used", unused, "used=true" if (ticket and ticket.get("used")) else "used=false")
 

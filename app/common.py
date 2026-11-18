@@ -1,4 +1,4 @@
-"""Streamlit 页面公共层：路径引导、样式、账户选择、交易结果展示。"""
+"""Shared Streamlit page layer: path bootstrap, styling, account selection, transaction result rendering."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ div[data-testid="stMetricValue"] {font-size: 1.3rem;}
 .tag-fail {background: #fee2e2; color: #991b1b;}
 .tag-warn {background: #fef3c7; color: #92400e;}
 .hint {color: #5b6577; font-size: 0.88rem;}
-/* 截图/演示时隐藏 Streamlit 自带的 Deploy 按钮与菜单，避免误认为业务功能 */
+/* Hide Streamlit's built-in Deploy button and menu during screenshots/demos so they are not mistaken for business features */
 [data-testid="stAppDeployButton"] {display: none !important;}
 [data-testid="stToolbar"] {display: none !important;}
 </style>
@@ -70,7 +70,7 @@ NAV = [
 
 
 def init_page() -> None:
-    """每个页面开头调用：页面配置 + 样式。"""
+    """Called at the start of every page: page config + styles."""
     st.set_page_config(
         page_title="FTEC5520 Anti-Scalping Ticketing",
         page_icon="🎫",
@@ -81,7 +81,7 @@ def init_page() -> None:
 
 
 def sidebar_nav() -> None:
-    """自定义侧边栏导航：比默认的多页导航更可控（英文标签 + 图标 + 顺序）。"""
+    """Custom sidebar navigation: more controllable than the default multipage nav (English labels + icons + order)."""
     with st.sidebar:
         for path, label, icon in NAV:
             st.page_link(path, label=label, icon=icon)
@@ -95,7 +95,7 @@ def header(title: str, subtitle: str = "") -> None:
 
 
 def chain_guard() -> dict:
-    """页面加载时先确认节点与合约可用，否则给出明确提示并停止渲染。"""
+    """Confirm the node and contract are available before the page loads; otherwise show a clear message and stop rendering."""
     status = api.get_chain_status()
     if not status["connected"]:
         st.error(
@@ -112,11 +112,13 @@ def chain_guard() -> dict:
 
 def account_select(label: str, key: str, default: str = "buyerA", roles: list[str] | None = None,
                    use_url_preset: bool = True) -> str:
-    """账户下拉框。支持 ?account=buyerB 深链预选（便于演示/截图直接定位到某个账户）。
+    """Account dropdown. Supports ?account=buyerB deep-link preselection (handy for demos/screenshots
+    that need to land on a specific account directly).
 
-    `use_url_preset=False` 用于"角色本身就是身份"的下拉框（例如验票页的 Verifier
-    account）：否则 URL 上残留的 `?account=buyerA` 会把验票员静默换成买家，
-    页面显示 not authorized，看起来像权限 bug。
+    `use_url_preset=False` is for dropdowns where the role *is* the identity (for example the
+    Verifier account on the check-in page): otherwise a stale `?account=buyerA` in the URL would
+    silently replace the verifier with a buyer, the page would show "not authorized", and it
+    would look like a permissions bug.
     """
     roles = roles or ["organizer", "buyerA", "buyerB", "verifier", "attacker", "deployer"]
     if use_url_preset and key not in st.session_state:
@@ -139,7 +141,7 @@ def short(address: str | None, head: int = 6, tail: int = 4) -> str:
 
 
 def tx_box(result: TxResult | dict, success_hint: str = "") -> None:
-    """统一展示交易结果：成功显示 tx/block/gas，失败显示 revert 原因。"""
+    """Render a transaction result consistently: on success show tx/block/gas, on failure show the revert reason."""
     data = result.to_dict() if isinstance(result, TxResult) else result
     if data.get("ok"):
         st.markdown(

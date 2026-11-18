@@ -1,14 +1,16 @@
-"""成员 1 交付的 Python 接口层（backend/ticket_api.py）。
+"""Python interface layer delivered by Member 1 (backend/ticket_api.py).
 
-成员 4 的 Streamlit 页面只允许调用本文件的函数，不直接写 Web3 代码：
+The Streamlit pages of Member 4 may only call the functions in this file and must not
+write Web3 code directly:
     from backend.ticket_api import get_ticket_owner, buy_ticket, ...
 
-约定
-----
-* 账户参数 `who` 既可以是角色名（"organizer" / "buyerA" / "buyerB" / "verifier" / "attacker"），
-  也可以是 0x 地址。
-* 写操作返回 `TxResult`：ok / tx_hash / block_number / gas_used / error。
-* 金额参数一律用 ETH（float 或 str），内部换算成 wei，避免页面层出现精度错误。
+Conventions
+-----------
+* The account argument `who` may be a role name ("organizer" / "buyerA" / "buyerB" /
+  "verifier" / "attacker") or a 0x address.
+* Write operations return `TxResult`: ok / tx_hash / block_number / gas_used / error.
+* Amounts are always given in ETH (float or str) and converted to wei internally, so the
+  page layer never hits precision errors.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ TRANSFER_TOPIC = hx(Web3.keccak(text="Transfer(address,address,uint256)"))
 
 
 # ----------------------------------------------------------------------
-# 内部工具
+# Internal helpers
 # ----------------------------------------------------------------------
 def _chain() -> Chain:
     return get_chain()
@@ -36,7 +38,7 @@ def _contract():
 
 
 def _addr(who: str) -> str:
-    """角色名或地址 -> checksum 地址。"""
+    """Role name or address -> checksum address."""
     w = str(who).strip()
     if w.startswith("0x") and len(w) == 42:
         return Web3.to_checksum_address(w)
@@ -57,7 +59,7 @@ def from_wei(wei: int | None) -> float:
 
 
 def _event_topic(name: str) -> str:
-    """从 ABI 里取事件签名并计算 topic0。"""
+    """Look up an event signature in the ABI and compute topic0."""
     for item in _chain().abi:
         if item.get("type") == "event" and item.get("name") == name:
             types = ",".join(i["type"] for i in item["inputs"])
@@ -84,10 +86,13 @@ def _decode_transfer_logs(logs: Iterable[dict]) -> list[dict]:
 
 
 # ----------------------------------------------------------------------
-# 链路状态
+# Chain status
 # ----------------------------------------------------------------------
 def chain() -> Chain:
-    """暴露底层 Chain（成员 1 内部/测试脚本使用；页面请优先用下面的语义化函数）。"""
+    """Expose the underlying Chain (for Member 1 internals and test scripts).
+
+    Pages should prefer the semantic functions below.
+    """
     return get_chain()
 
 
@@ -100,12 +105,12 @@ def get_settings():
 
 
 def get_chain_status() -> dict[str, Any]:
-    """链连接、chainId、区块高度、合约地址、各测试账户余额。"""
+    """Chain connection, chainId, block height, contract address, test account balances."""
     return _chain().chain_status()
 
 
 def get_receipt(tx_hash: str) -> dict[str, Any]:
-    """查询交易是否被打包、Gas 用量、所在区块。"""
+    """Check whether a transaction was mined, plus its gas usage and block."""
     return _chain().receipt(tx_hash)
 
 
@@ -118,7 +123,10 @@ def get_accounts() -> dict[str, str]:
 
 
 def signing_key(role: str) -> str:
-    """取角色私钥（仅课堂 Demo 的页面代签使用；真实产品应由用户钱包签名）。"""
+    """Fetch a role's private key (page-side signing for the class demo only).
+
+    A real product would let the user's own wallet sign.
+    """
     return _chain().settings.key(role)
 
 
@@ -127,7 +135,7 @@ def get_balance_eth(who: str) -> float:
 
 
 # ----------------------------------------------------------------------
-# 活动（成员 2 的合约逻辑）
+# Events (Member 2's contract logic)
 # ----------------------------------------------------------------------
 def create_event(
     name: str,
@@ -138,7 +146,7 @@ def create_event(
     presale_active: bool = False,
     organizer: str = "organizer",
 ) -> TxResult:
-    """主办方创建活动。event_time 可传 datetime 或 unix 时间戳。"""
+    """Organizer creates an event. event_time may be a datetime or a unix timestamp."""
     ts = int(event_time.timestamp()) if isinstance(event_time, datetime) else int(event_time)
     fn = _contract().functions.createEvent(
         name, to_wei(price_eth), int(max_supply), ts, int(wallet_limit), bool(presale_active)
@@ -161,7 +169,7 @@ def set_presale_active(event_id: int, presale_active: bool, organizer: str = "or
 
 def set_whitelist(event_id: int, accounts: str | Iterable[str], allowed: bool = True,
                   organizer: str = "organizer") -> TxResult:
-    """单个或多个地址写入预售白名单（多个时走 setWhitelistBatch）。"""
+    """Add one or more addresses to the presale whitelist (setWhitelistBatch for many)."""
     contract = _contract()
     if isinstance(accounts, str):
         fn = contract.functions.setWhitelist(int(event_id), _addr(accounts), bool(allowed))
@@ -194,7 +202,7 @@ def get_event(event_id: int) -> dict[str, Any] | None:
 
 
 def list_events() -> list[dict[str, Any]]:
-    """遍历 nextEventId 读取全部活动（活动数量很少，逐个 call 足够）。"""
+    """Read all events by iterating nextEventId (few events, so per-id calls are fine)."""
     next_id = get_next_event_id()
     return [ev for ev in (get_event(i) for i in range(1, next_id)) if ev]
 
@@ -208,21 +216,21 @@ def remaining_supply(event_id: int) -> int:
 
 
 def purchased_count(event_id: int, who: str) -> int:
-    """链上 `purchasedByWallet`：只统计一级市场购买，二手买入不计入限购。"""
+    """On-chain `purchasedByWallet`: primary-market buys only; resales do not count."""
     return int(_contract().functions.purchasedByWallet(int(event_id), _addr(who)).call())
 
 
 def can_purchase(event_id: int, who: str, quantity: int = 1) -> tuple[bool, str]:
-    """链上预检：(是否可以买, 原因)。最终仍以 purchaseTickets 的链上校验为准。"""
+    """On-chain pre-check: (can buy, reason). The purchaseTickets on-chain check is final."""
     ok, reason = _contract().functions.canPurchase(int(event_id), _addr(who), int(quantity)).call()
     return bool(ok), str(reason)
 
 
 # ----------------------------------------------------------------------
-# 一级购票
+# Primary-market purchase
 # ----------------------------------------------------------------------
 def buy_ticket(event_id: int, buyer: str = "buyerA", quantity: int = 1) -> TxResult:
-    """一级市场购票：返回值里带 first_token_id / last_token_id，方便页面直接展示。"""
+    """Primary-market purchase: the result also carries first_token_id / last_token_id."""
     contract = _contract()
     event = get_event(event_id)
     if event is None:
@@ -237,17 +245,18 @@ def buy_ticket(event_id: int, buyer: str = "buyerA", quantity: int = 1) -> TxRes
 
 
 # ----------------------------------------------------------------------
-# 门票
+# Tickets
 # ----------------------------------------------------------------------
 def get_ticket_owner(token_id: int) -> str:
-    """读取门票当前持有人。"""
+    """Read the current holder of a ticket."""
     return _contract().functions.ownerOf(int(token_id)).call()
 
 
 def get_max_resale_price(token_id: int) -> dict[str, Any]:
-    """动态转售上限：距演出 >7 天为原价 120%，≤7 天为原价 100%。
+    """Dynamic resale cap: 120% of face value when >7 days before the show, else 100%.
 
-    合约在演出开始后做减法会下溢，这里捕获并返回 None，避免页面崩溃。
+    Once the show has started the contract's subtraction would underflow, so the error is
+    caught and None is returned instead of crashing the page.
     """
     contract = _contract()
     try:
@@ -258,11 +267,11 @@ def get_max_resale_price(token_id: int) -> dict[str, Any]:
 
 
 def get_ticket(token_id: int) -> dict[str, Any] | None:
-    """门票完整状态：票主、所属活动、挂牌价、转售次数、是否已核销。"""
+    """Full ticket state: owner, event, listing price, resale count, check-in state."""
     contract = _contract()
     try:
         owner = contract.functions.ownerOf(int(token_id)).call()
-    except Exception:  # noqa: BLE001  不存在的 tokenId
+    except Exception:  # noqa: BLE001  nonexistent tokenId
         return None
     is_listed, listing_price, resale_count, used = contract.functions.tickets(int(token_id)).call()
     event_id = int(contract.functions.tokenToEvent(int(token_id)).call())
@@ -295,9 +304,10 @@ def all_tokens() -> list[int]:
 
 
 def tokens_of(who: str) -> list[int]:
-    """某地址当前持有的 tokenId 列表。
+    """List of tokenIds an address currently holds.
 
-    合约没有继承 ERC721Enumerable，因此通过扫描 Transfer 事件 + 校验当前 ownerOf 得到。
+    The contract does not inherit ERC721Enumerable, so the list is built by scanning the
+    Transfer events and then verifying the current ownerOf.
     """
     address = _addr(who)
     logs = _chain().w3.eth.get_logs(
@@ -320,7 +330,7 @@ def tokens_of(who: str) -> list[int]:
 
 
 def transfer_history(limit: int = 30) -> list[dict[str, Any]]:
-    """最近的 NFT 转移记录（购票铸造 / 转售），供页面展示交易证据。"""
+    """Recent NFT transfers (mints on purchase / resales), shown by the page as evidence."""
     logs = _chain().w3.eth.get_logs(
         {
             "fromBlock": hex(max(_chain().settings.deploy_block, 0)),
@@ -333,7 +343,7 @@ def transfer_history(limit: int = 30) -> list[dict[str, Any]]:
 
 
 # ----------------------------------------------------------------------
-# 二手市场（成员 3 的合约逻辑）
+# Secondary market (Member 3's contract logic)
 # ----------------------------------------------------------------------
 def list_ticket(token_id: int, price_eth: float | str, seller: str = "buyerA") -> TxResult:
     fn = _contract().functions.listForResale(int(token_id), to_wei(price_eth))
@@ -348,7 +358,7 @@ def cancel_listing(token_id: int, seller: str = "buyerA") -> TxResult:
 def buy_resale(token_id: int, buyer: str = "buyerB") -> TxResult:
     ticket = get_ticket(token_id)
     if ticket is None:
-        return TxResult(ok=False, function="buyResale", error=f"门票 {token_id} 不存在")
+        return TxResult(ok=False, function="buyResale", error=f"Ticket {token_id} does not exist")
     fn = _contract().functions.buyResale(int(token_id))
     result = _chain().send(fn, role=_role_of(buyer), value=ticket["listing_price_wei"])
     if result.ok:
@@ -357,7 +367,7 @@ def buy_resale(token_id: int, buyer: str = "buyerB") -> TxResult:
 
 
 def listed_tickets() -> list[dict[str, Any]]:
-    """当前所有在售门票（token 数量很少，逐个读 tickets 足够）。"""
+    """All tickets currently for sale (few tokens, so reading tickets one by one is fine)."""
     out = []
     for token_id in all_tokens():
         ticket = get_ticket(token_id)
@@ -367,20 +377,21 @@ def listed_tickets() -> list[dict[str, Any]]:
 
 
 def pending_proceeds(who: str = "organizer") -> float:
-    """主办方待提取的一级市场票款（ETH）。
+    """Primary-market revenue the organizer can still withdraw (ETH).
 
-    合约是拉取式结算：购票款只记账到 `pendingProceeds`，购票交易里不会自动转出。
+    Settlement is pull-based: the payment is only credited to `pendingProceeds` and the
+    purchase transaction does not transfer it out.
     """
     return from_wei(int(_contract().functions.pendingProceeds(_addr(who)).call()))
 
 
 def pending_platform_fees(who: str = "deployer") -> float:
-    """待提取的二级市场平台手续费（ETH）：每笔转售按售价 5% 记给合约 owner。"""
+    """Withdrawable resale platform fee (ETH): 5% of each resale price, to the owner."""
     return from_wei(int(_contract().functions.pendingPlatformFees(_addr(who)).call()))
 
 
 def withdraw_proceeds(who: str = "organizer") -> TxResult:
-    """主办方提取自己名下的票款（对应合约 `withdrawProceeds`）。"""
+    """Organizer withdraws the revenue credited to them (contract `withdrawProceeds`)."""
     return _chain().send(_contract().functions.withdrawProceeds(), role=_role_of(who))
 
 
@@ -389,7 +400,7 @@ def withdraw_platform_fees(owner: str = "deployer") -> TxResult:
 
 
 # ----------------------------------------------------------------------
-# 验票
+# Check-in
 # ----------------------------------------------------------------------
 def set_verifier(verifier: str, status: bool = True, owner: str = "deployer") -> TxResult:
     fn = _contract().functions.setVerifier(_addr(verifier), bool(status))
@@ -406,10 +417,10 @@ def check_in(token_id: int, verifier: str = "verifier") -> TxResult:
 
 
 # ----------------------------------------------------------------------
-# 事件
+# Events
 # ----------------------------------------------------------------------
 def get_events(event_name: str, from_block: int | None = None, limit: int = 20) -> list[dict[str, Any]]:
-    """按名称读取链上事件（TicketPurchased / TicketResold / TicketCheckedIn ...）。"""
+    """Read on-chain events by name (TicketPurchased / TicketResold / TicketCheckedIn ...)."""
     chain = _chain()
     event = getattr(chain.require_contract().events, event_name)
     logs = event.get_logs(from_block=from_block or max(chain.settings.deploy_block, 0), to_block="latest")
@@ -421,7 +432,7 @@ def get_events(event_name: str, from_block: int | None = None, limit: int = 20) 
 
 # ----------------------------------------------------------------------
 def _role_of(who: str) -> str:
-    """把地址反查成角色名（send 需要角色名来取私钥）。"""
+    """Map an address back to a role name (send needs the role name to get the key)."""
     w = str(who).strip()
     if not w.startswith("0x"):
         return w
@@ -429,4 +440,4 @@ def _role_of(who: str) -> str:
     for role, addr in _chain().settings.account_addresses.items():
         if Web3.to_checksum_address(addr) == target:
             return role
-    raise ValueError(f"地址 {w} 不在 .env 的测试账户中，无法代签交易")
+    raise ValueError(f"Address {w} is not a .env test account; cannot sign on its behalf")

@@ -1,4 +1,6 @@
-"""统一配置加载：.env（私钥/连接串）+ config/network.json（合约地址/ABI/账户）。"""
+"""Unified configuration loading: .env (private keys / RPC URL) + config/network.json
+(contract address / ABI / accounts).
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,10 @@ ROLES = ("deployer", "organizer", "buyerA", "buyerB", "verifier", "attacker")
 
 
 def _load_dotenv(path: Path = ENV_PATH) -> None:
-    """轻量 .env 解析，避免强制依赖 python-dotenv。已存在的环境变量优先。"""
+    """Lightweight .env parser that avoids a hard dependency on python-dotenv.
+
+    Environment variables that are already set take precedence.
+    """
     if not path.exists():
         return
     for raw in path.read_text("utf-8").splitlines():
@@ -44,13 +49,17 @@ class Settings:
         try:
             return self.private_keys[role]
         except KeyError as exc:
-            raise KeyError(f"缺少 {role} 的私钥，请检查 .env 中的 PRIVATE_KEY_{role.upper()}") from exc
+            raise KeyError(
+                f"Missing private key for {role}; check .env PRIVATE_KEY_{role.upper()}"
+            ) from exc
 
     def address(self, role: str) -> str:
         try:
             return self.account_addresses[role]
         except KeyError as exc:
-            raise KeyError(f"未知账户角色: {role}（可用: {', '.join(self.account_addresses) or '无'}）") from exc
+            raise KeyError(
+                f"Unknown role: {role}; available: {', '.join(self.account_addresses) or 'none'}"
+            ) from exc
 
 
 def load_settings(path: Path | None = None) -> Settings:
@@ -71,9 +80,11 @@ def load_settings(path: Path | None = None) -> Settings:
         if abi:
             settings.abi_path = (ROOT / abi) if not Path(abi).is_absolute() else Path(abi)
 
-    # 私钥只从环境变量读，不写进 network.json
-    # 地址以私钥推导结果为唯一真值：重跑 init_chain.py 后 network.json 里的旧地址会被纠正，
-    # 否则会出现"用新私钥签名、却以为自己是旧地址"的诡异失败（成员 5 复现测试时发现）。
+    # Private keys are read only from environment variables and never written to
+    # network.json. Addresses derived from the private keys are the single source of
+    # truth: after re-running init_chain.py, stale addresses in network.json are
+    # corrected. Otherwise you hit the bizarre failure of signing with a new key while
+    # assuming you are still the old address (found by Member 5 while reproducing tests).
     for role in ROLES:
         key = os.getenv(f"PRIVATE_KEY_{role.upper()}")
         if key:

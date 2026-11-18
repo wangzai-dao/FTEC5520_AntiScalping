@@ -1,4 +1,4 @@
-"""二手市场页：挂牌、取消、购买转售门票，并展示动态限价。"""
+"""Resale market page: list, cancel and buy resale tickets, and show the dynamic price cap."""
 
 from __future__ import annotations
 

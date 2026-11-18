@@ -1,4 +1,4 @@
-"""总览页（入口 app.py）：链上总览 / 系统架构 / 演示入口。"""
+"""Overview page (entry point app.py): on-chain overview / system architecture / demo entry points."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""私有链连通性自检：chainId / 区块高度 / 账户余额 / 合约可读性。
+"""Private-chain connectivity self-check: chainId / block height / account balances / contract readability.
 
-用法:
+Usage:
     python scripts/check_chain.py
 """
 
@@ -21,11 +21,11 @@ def main() -> int:
     print(f"RPC          : {status['rpc_url']}")
     print(f"connected    : {status['connected']}")
     if not status["connected"]:
-        print("节点不可用：请运行 ./blockchain/start_node.sh")
+        print("Node unavailable: please run ./blockchain/start_node.sh")
         return 1
     print(f"chainId      : {status['chain_id']}")
     print(f"blockNumber  : {status['block_number']}")
-    print(f"contract     : {status['contract_address'] or '（未部署）'}")
+    print(f"contract     : {status['contract_address'] or '(not deployed)'}")
 
     for role, balance in status["balances"].items():
         print(f"  {role:<10} {api.get_accounts()[role]}  {balance} ETH")
@@ -39,7 +39,7 @@ def main() -> int:
     print(f"events       : {len(events)}")
     for e in events:
         print(f"  #{e['event_id']} {e['name']}  {e['sold']}/{e['max_supply']}  {e['price_eth']} ETH")
-    print(f"tickets      : {len(api.all_tokens())}，在售 {len(api.listed_tickets())}")
+    print(f"tickets      : {len(api.all_tokens())}, listed {len(api.listed_tickets())}")
     return 0
 
 

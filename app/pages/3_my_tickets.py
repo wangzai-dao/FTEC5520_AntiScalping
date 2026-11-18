@@ -1,4 +1,4 @@
-"""我的门票页：查看持仓、链上状态，并生成持票人签名的短时二维码。"""
+"""My Tickets page: inspect holdings and on-chain state, and issue a short-lived QR code signed by the holder."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ address = api.get_accounts()[holder]
 st.caption(f"Wallet address: `{address}` (this classroom demo signs server-side in Python; a production build would keep the key in the user's own wallet)")
 
 token_ids = api.tokens_of(address)
-# 未使用的排在前面，演示时默认选中一张可以生成有效二维码的票
+# Put unused tickets first so the demo defaults to a ticket that can produce a valid QR code
 token_ids = sorted(token_ids, key=lambda t: (api.get_ticket(t) or {}).get("used", False))
 if not token_ids:
     st.info("This account holds no tickets. Buy one in **Buy Tickets**, or check that the right account is selected.")

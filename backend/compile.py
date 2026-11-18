@@ -1,11 +1,11 @@
 """Compile ConcertTicket.sol / Helper.sol with solc 0.8.20 (Standard JSON).
 
-成员 2、3 交付的合约使用 Remix 风格 import:
+The contracts delivered by Members 2 and 3 use Remix-style imports:
     import "@openzeppelin/contracts@5.0.2/token/ERC721/ERC721.sol";
-solc 不认识 "@5.0.2" 这个后缀，因此这里用 remapping 把它映射到
-contracts/lib/@openzeppelin/contracts/（由 backend/fetch_deps.py 下载）。
+solc does not understand the "@5.0.2" suffix, so a remapping maps it to
+contracts/lib/@openzeppelin/contracts/ (downloaded by backend/fetch_deps.py).
 
-输出:
+Output:
     contracts/build/ConcertTicket.json  { abi, bytecode, deployedBytecode, ... }
     contracts/build/Helper.json
 """
@@ -26,36 +26,36 @@ CONTRACTS = ROOT / "contracts"
 BUILD = CONTRACTS / "build"
 BIN = CONTRACTS / "bin"
 SOLC_VERSION = "0.8.20"
-EVM_VERSION = "paris"  # 不用 PUSH0，保证在伦敦规则的老私有链上也能跑
+EVM_VERSION = "paris"  # no PUSH0, so it also runs on the old London-rule private chain
 
 SOLC_HOST_MAP = {
     ("Darwin", "x86_64"): "macosx-amd64",
-    ("Darwin", "arm64"): "macosx-amd64",  # 通过 Rosetta 运行 x86_64 版本
+    ("Darwin", "arm64"): "macosx-amd64",  # run the x86_64 build through Rosetta
     ("Linux", "x86_64"): "linux-amd64",
     ("Linux", "aarch64"): "linux-aarch64",
 }
 
 
-# binaries.soliditylang.org 前面挂着 Cloudflare，会把 Python-urllib 的默认 UA
-# 当爬虫拦成 403 Forbidden，因此下载时必须自带一个普通 UA。
+# Cloudflare fronts binaries.soliditylang.org and answers the default Python-urllib
+# UA with 403 Forbidden, treating it as a crawler, so downloads must send a normal UA.
 SOLC_UA = "Mozilla/5.0 (X11; Linux x86_64) ftec5520-build/1.0"
 
 
 def _urlopen(url: str, timeout: int):
-    """带 User-Agent 的 urlopen（裸 urlopen 会被 403）。"""
+    """urlopen with a User-Agent header (a bare urlopen is rejected with 403)."""
     request = urllib.request.Request(url, headers={"User-Agent": SOLC_UA})
     return urllib.request.urlopen(request, timeout=timeout)
 
 
 def solc_path() -> Path:
-    """返回本地 solc 二进制路径，不存在则从 binaries.soliditylang.org 下载。"""
+    """Return the path of the local solc binary, downloading it if it is missing."""
     local = BIN / "solc"
     if local.exists():
         return local
 
     host = SOLC_HOST_MAP.get((platform.system(), platform.machine()))
     if host is None:
-        sys.exit(f"没有为 {platform.system()}/{platform.machine()} 准备 solc 下载地址")
+        sys.exit(f"No solc download URL available for {platform.system()}/{platform.machine()}")
 
     BIN.mkdir(parents=True, exist_ok=True)
     base = f"https://binaries.soliditylang.org/{host}"
@@ -63,9 +63,9 @@ def solc_path() -> Path:
         listing = json.load(r)
     key = next((k for k in listing["releases"] if k == SOLC_VERSION or k.startswith(SOLC_VERSION + "+")), None)
     if key is None:
-        sys.exit(f"list.json 里找不到 solc {SOLC_VERSION} 的构建")
+        sys.exit(f"No solc {SOLC_VERSION} build found in list.json")
     url = f"{base}/{listing['releases'][key]}"
-    print(f"[compile] 下载 solc {key}: {url}")
+    print(f"[compile] Downloading solc {key}: {url}")
     with _urlopen(url, 180) as r, open(local, "wb") as f:
         shutil.copyfileobj(r, f)
     local.chmod(0o755)
@@ -75,7 +75,7 @@ def solc_path() -> Path:
 def build_standard_json() -> dict:
     oz = CONTRACTS / "lib" / "@openzeppelin" / "contracts"
     if not (oz / "token" / "ERC721" / "ERC721.sol").exists():
-        sys.exit("缺少 OpenZeppelin 依赖，请先运行: python backend/fetch_deps.py")
+        sys.exit("OpenZeppelin dependency missing, please run: python backend/fetch_deps.py")
 
     sources = {
         "contracts/ConcertTicket.sol": {"content": (CONTRACTS / "ConcertTicket.sol").read_text("utf-8")},
@@ -85,7 +85,7 @@ def build_standard_json() -> dict:
         "language": "Solidity",
         "sources": sources,
         "settings": {
-            # 相对 base-path 的 remapping，--standard-json 下绝对路径不可用
+            # remapping relative to base-path; absolute paths do not work in --standard-json
             "remappings": ["@openzeppelin/contracts@5.0.2/=contracts/lib/@openzeppelin/contracts/"],
             "optimizer": {"enabled": True, "runs": 200},
             "evmVersion": EVM_VERSION,
@@ -104,7 +104,7 @@ def build_standard_json() -> dict:
 
 
 def compile_contracts() -> dict:
-    """编译并返回 {合约名: artifact}，同时写入 contracts/build/*.json。"""
+    """Compile and return {contract name: artifact}, also writing contracts/build/*.json."""
     solc = solc_path()
     payload = build_standard_json()
     proc = subprocess.run(
@@ -114,14 +114,14 @@ def compile_contracts() -> dict:
         text=True,
     )
     if proc.returncode != 0:
-        sys.exit(f"solc 退出码 {proc.returncode}\n{proc.stderr[:4000]}")
+        sys.exit(f"solc exited with code {proc.returncode}\n{proc.stderr[:4000]}")
 
     out = json.loads(proc.stdout)
     errors = [e for e in out.get("errors", []) if e.get("severity") == "error"]
     if errors:
         for e in errors:
             print(f"[solc error] {e['formattedMessage']}", file=sys.stderr)
-        sys.exit("编译失败")
+        sys.exit("Compilation failed")
 
     warnings = [e for e in out.get("errors", []) if e.get("severity") == "warning"]
     for w in warnings[:5]:
@@ -145,7 +145,7 @@ def compile_contracts() -> dict:
         (BUILD / f"{name}.json").write_text(json.dumps(artifact, indent=2, ensure_ascii=False), "utf-8")
         artifacts[name] = artifact
         size = (len(artifact["bytecode"]) - 2) // 2
-        print(f"[compile] {name}: ABI {len(artifact['abi'])} 项, bytecode {size} bytes -> {BUILD / (name + '.json')}")
+        print(f"[compile] {name}: ABI {len(artifact['abi'])} items, bytecode {size} bytes -> {BUILD / (name + '.json')}")
     return artifacts
 
 

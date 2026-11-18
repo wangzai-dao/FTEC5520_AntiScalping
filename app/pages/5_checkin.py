@@ -1,4 +1,4 @@
-"""验票页：校验签名二维码 + 链上状态，再由授权 verifier 核销。"""
+"""Check-in page: validate the signed QR code plus on-chain state, then let an authorized verifier check the ticket in."""
 
 from __future__ import annotations
 
@@ -98,7 +98,8 @@ else:
     token_id = int(result["payload"]["token_id"])
     ticket = api.get_ticket(token_id)
     last = st.session_state.get("checkin_result") or {}
-    # 本次运行里刚核销成功时，链上状态还没来得及在页面顶部刷新，这里合并一下
+    # Right after a successful check-in in this run the on-chain state has not been refreshed at the
+    # top of the page yet, so merge the two here
     used_now = bool(ticket["used"]) or bool(last.get("ok"))
     c1, c2 = st.columns(2)
     c1.metric("tokenId", token_id)
@@ -107,7 +108,7 @@ else:
         result_tx = api.check_in(token_id, verifier)
         st.session_state["checkin_result"] = result_tx.to_dict()
         if result_tx.ok:
-            st.rerun()  # 重新读一遍链上状态，used 指标与按钮状态立即同步
+            st.rerun()  # re-read on-chain state so the used metric and button state update immediately
     if c2.button("Check in again (should fail)", use_container_width=True):
         st.session_state["checkin_result"] = api.check_in(token_id, verifier).to_dict()
     if "checkin_result" in st.session_state:

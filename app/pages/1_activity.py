@@ -1,4 +1,4 @@
-"""活动管理页：主办方创建活动、开关售票/预售、管理白名单、结算票款。"""
+"""Event management page: the organizer creates events, toggles ticket sales/presale, manages the whitelist and settles ticket revenue."""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ if d1.button("Withdraw proceeds", type="primary", use_container_width=True):
     result = api.withdraw_proceeds(settle)
     st.session_state["settle_result"] = result.to_dict()
     if result.ok:
-        st.rerun()  # 重新读一遍链上余额，三个指标立即同步
+        st.rerun()  # re-read the on-chain balance so the three metrics update immediately
 if d2.button("Withdraw platform fees", use_container_width=True):
     result = api.withdraw_platform_fees(settle)
     st.session_state["settle_result"] = result.to_dict()

@@ -1,10 +1,13 @@
-"""Web3 连接与交易发送的底层封装（成员 1 模块）。
+"""Low-level wrapper around the Web3 connection and transaction sending (Member 1 module).
 
-设计要点：
-* 所有写操作都走 `Chain.send()`，由它统一处理 nonce、gas、签名、等待回执和异常，
-  上层 ticket_api.py 只关心业务参数。
-* 返回值统一为 TxResult(ok, tx_hash, block_number, gas_used, error)，方便 Streamlit 展示。
-* 私有链（Clique）的 extraData 超过 32 字节，必须注入 POA 中间件，否则拿不到区块。
+Design notes:
+* Every write goes through `Chain.send()`, which handles nonce, gas, signing, waiting for
+  the receipt and exceptions in one place, so the layer above (ticket_api.py) only has to
+  deal with business parameters.
+* Return values are always TxResult(ok, tx_hash, block_number, gas_used, error), which is
+  easy to display in Streamlit.
+* On the private chain (Clique) extraData is longer than 32 bytes, so the POA middleware
+  must be injected, otherwise blocks cannot be fetched.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ RECEIPT_TIMEOUT = 120
 
 @dataclass
 class TxResult:
-    """统一返回结构：ok / tx_hash / block_number / gas_used / error。"""
+    """Unified return structure: ok / tx_hash / block_number / gas_used / error."""
 
     ok: bool
     function: str
@@ -42,7 +45,7 @@ class TxResult:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def __str__(self) -> str:  # 方便 CLI / 日志
+    def __str__(self) -> str:  # convenient for CLI / logging
         if self.ok:
             return (
                 f"[OK] {self.function} tx={self.tx_hash} block={self.block_number} "
@@ -52,20 +55,20 @@ class TxResult:
 
 
 def hx(value) -> str:
-    """把 HexBytes / bytes 转成带 0x 前缀的十六进制字符串。"""
+    """Convert HexBytes / bytes into a hex string with a 0x prefix."""
     text = value.hex() if hasattr(value, "hex") else str(value)
     return text if text.startswith("0x") else "0x" + text
 
 
 def clean_revert(exc: Exception) -> str:
-    """从 web3 抛出的异常里取出人类可读的 revert 原因。"""
+    """Extract a human-readable revert reason from an exception raised by web3."""
     raw = getattr(exc, "message", None) or str(exc)
     if isinstance(raw, dict):
         raw = raw.get("message", "") or str(raw)
     msg = str(raw)
     if "execution reverted:" in msg:
         msg = msg.split("execution reverted:", 1)[1]
-    # web3 会把 revert data 也拼进消息里，形如 "... reason', '0x08c379a0..."
+    # web3 also appends the revert data to the message, as in "... reason', '0x08c379a0..."
     for sep in ("', '0x", '", "0x', "', '", '\n'):
         msg = msg.split(sep, 1)[0]
     return msg.strip().strip("'\"")[:400] or exc.__class__.__name__
@@ -75,7 +78,7 @@ class Chain:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or load_settings()
         self.w3 = Web3(Web3.HTTPProvider(self.settings.rpc_url, request_kwargs={"timeout": 30}))
-        # Clique 私有链：区块 extraData 为 97 字节，需要 POA 中间件解析
+        # Clique private chain: block extraData is 97 bytes, the POA middleware parses it
         self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         self.contract = None
         if self.settings.contract_address:
@@ -85,7 +88,7 @@ class Chain:
             )
 
     # ------------------------------------------------------------------
-    # 基础信息
+    # Basic information
     # ------------------------------------------------------------------
     @property
     def abi(self) -> list[dict]:
@@ -104,7 +107,7 @@ class Chain:
     def require_contract(self):
         if self.contract is None:
             raise RuntimeError(
-                "尚未部署合约：请先运行 python backend/deploy.py 生成 config/network.json"
+                "Contract not deployed: run python backend/deploy.py to create config/network.json"
             )
         return self.contract
 
@@ -133,12 +136,12 @@ class Chain:
         return float(self.w3.from_wei(self.w3.eth.get_balance(Web3.to_checksum_address(address)), "ether"))
 
     # ------------------------------------------------------------------
-    # 交易发送
+    # Sending transactions
     # ------------------------------------------------------------------
     def _fee_fields(self) -> dict[str, Any]:
         block = self.w3.eth.get_block("latest")
         base_fee = block.get("baseFeePerGas")
-        if base_fee is None:  # 未启用 London 的老链
+        if base_fee is None:  # old chain without London enabled
             return {"gasPrice": max(self.w3.eth.gas_price, GWEI)}
         priority = GWEI
         return {
@@ -147,12 +150,12 @@ class Chain:
         }
 
     def send(self, fn, role: str = "deployer", value: int = 0) -> TxResult:
-        """调用合约写函数，返回统一结构的 TxResult。"""
+        """Call a contract write function and return a TxResult in the unified structure."""
         name = getattr(fn, "fn_name", "call")
         try:
             contract = self.require_contract()
             account = Account.from_key(self.settings.key(role))
-        except Exception as exc:  # 配置错误
+        except Exception as exc:  # configuration error
             return TxResult(ok=False, function=name, error=str(exc))
 
         sender = account.address
@@ -169,7 +172,7 @@ class Chain:
                     **self._fee_fields(),
                 }
             )
-        except Exception as exc:  # noqa: BLE001  estimate_gas 会把 revert 原因抛出
+        except Exception as exc:  # noqa: BLE001  estimate_gas surfaces the revert reason
             return TxResult(ok=False, function=name, from_address=sender, error=clean_revert(exc))
 
         tx.pop("from", None)
@@ -188,7 +191,7 @@ class Chain:
                 function=name,
                 tx_hash=hx(tx_hash),
                 from_address=sender,
-                error=f"{RECEIPT_TIMEOUT}s 内未确认，请检查节点是否在出块",
+                error=f"Not mined within {RECEIPT_TIMEOUT}s; is the node producing blocks?",
             )
 
         if receipt.status != 1:
@@ -200,7 +203,7 @@ class Chain:
                 gas_used=receipt.gasUsed,
                 status=receipt.status,
                 from_address=sender,
-                error="交易已打包但执行失败（status=0）",
+                error="Transaction was mined but execution failed (status=0)",
             )
 
         return TxResult(
@@ -214,15 +217,15 @@ class Chain:
         )
 
     # ------------------------------------------------------------------
-    # 只读辅助
+    # Read-only helpers
     # ------------------------------------------------------------------
     def receipt(self, tx_hash: str) -> dict[str, Any]:
         try:
             r = self.w3.eth.get_transaction_receipt(tx_hash)
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "tx_hash": tx_hash, "error": f"查不到该交易: {exc}"}
+            return {"ok": False, "tx_hash": tx_hash, "error": f"Transaction not found: {exc}"}
         if r is None:
-            return {"ok": False, "tx_hash": tx_hash, "error": "交易未被打包"}
+            return {"ok": False, "tx_hash": tx_hash, "error": "Transaction not mined"}
         tx = self.w3.eth.get_transaction(tx_hash)
         return {
             "ok": True,
@@ -254,11 +257,11 @@ _chain: Chain | None = None
 
 
 def get_chain(reload: bool = False) -> Chain:
-    """进程内单例，避免每次页面刷新都重连。"""
+    """In-process singleton, so a page refresh does not reconnect every time."""
     global _chain
     if _chain is None or reload:
         _chain = Chain()
     return _chain
 
 
-_clean_revert = clean_revert  # 兼容旧调用
+_clean_revert = clean_revert  # kept for backwards compatibility

@@ -1,4 +1,4 @@
-# ---- 私钥与本地链数据：绝对不能提交 ----
+# ---- Private keys and local chain data: never commit ----
 .env
 blockchain/data/
 blockchain/geth.log
@@ -7,7 +7,7 @@ blockchain/miner.key
 blockchain/miner.addr
 blockchain/password.txt
 
-# ---- 可再生成的工具与依赖 ----
+# ---- Regenerable tooling and dependencies ----
 .venv/
 tools/*
 !tools/.gitkeep
@@ -20,8 +20,8 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
-# ---- 运行产物 ----
+# ---- Runtime artefacts ----
 results/*.log
 
-# ---- 本地缓存 ----
+# ---- Local caches ----
 .mplconfig/

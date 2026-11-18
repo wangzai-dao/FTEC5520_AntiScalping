@@ -1,45 +1,45 @@
-# 成员 1：Lab 1 私有链环境与部署说明
+# Member 1: Lab 1 Private Chain Environment and Deployment Notes
 
-本文件对应任务书「05｜成员 1」的 01–04、09 项：**搭链 → 验证 RPC → 准备测试账户 → 部署 → 写运行说明**。
+This document covers items 01–04 and 09 of "05 | Member 1" in the project brief: **set up the chain → verify RPC → prepare test accounts → deploy → write the run instructions**.
 
-> 老师 Lab 1 的原始材料在 `../lab1/`（`Lab_1_Exercise.pdf`、HackMD 2026 版讲义、AWS 截图）。
-> 本文件记录的是**本项目实际跑通的那套配置**，以及在 AWS 实例关机后如何在本机复现同一条链。
+> The instructor's original Lab 1 material is in `../lab1/` (`Lab_1_Exercise.pdf`, the HackMD 2026 handout, AWS screenshots).
+> This file documents **the exact configuration this project actually ran**, and how to reproduce the same chain locally after the AWS instance is shut down.
 
 ---
 
-## 1. 版本选择：为什么锁 Geth 1.13.15
+## 1. Version choice: why Geth is pinned to 1.13.15
 
-| 版本 | 私有链（Clique / `miner.start()` + 自定义 genesis） |
+| Version | Private chain (Clique / `miner.start()` + custom genesis) |
 |---|---|
-| Geth ≤ 1.13.x | ✅ 支持 |
-| Geth ≥ 1.14 | ❌ 启动即报 `Geth only supports PoS networks`，自定义 genesis 私有链无法出块 |
+| Geth ≤ 1.13.x | ✅ Supported |
+| Geth ≥ 1.14 | ❌ Fails at startup with `Geth only supports PoS networks`; a private chain with a custom genesis cannot produce blocks |
 
-Lab 1 用的是「genesis.json + 解锁账户 + 挖矿」的私有链，因此本项目锁定 **1.13.15**（最后一个支持 Clique
-的稳定版）。`scripts/get_geth.sh` 会自动按平台下载对应二进制到 `tools/geth`：
+Lab 1 uses a private chain built from "genesis.json + unlocked accounts + mining", so this project pins **1.13.15** (the last stable release
+that supports Clique). `scripts/get_geth.sh` automatically downloads the matching binary for your platform into `tools/geth`:
 
 ```bash
-./scripts/get_geth.sh          # 下载到 tools/geth，已是符号链接
+./scripts/get_geth.sh          # Downloads into tools/geth, which is already a symlink
 ./tools/geth version         # Geth Version: 1.13.15-stable
 ```
 
-> 如果课程环境里的 Geth 版本不同：只要它支持 `--mine` / Clique，脚本其余部分不用改；
-> 若只能用 `--dev` 模式，把 `start_node.sh` 里的 `--mine ...` 换成 `--dev --dev.period 2` 即可。
+> If the course environment has a different Geth version: as long as it supports `--mine` / Clique, the rest of the scripts need no changes;
+> if only `--dev` mode is available, just replace `--mine ...` in `start_node.sh` with `--dev --dev.period 2`.
 
-## 2. 一条命令生成账户与 genesis
+## 2. Generating accounts and genesis with one command
 
 ```bash
 python blockchain/init_chain.py
 ```
 
-做的事：
+What it does:
 
-1. 用 `eth-account` 生成 7 个账户：`deployer / organizer / buyerA / buyerB / verifier / attacker / miner`；
-2. 把它们写进 `blockchain/genesis.json` 的 `alloc`，每个 1000 ETH；
-3. 把 `miner` 的地址写进 `extradata`，作为 Clique 的签名者；
-4. 把 6 个业务账户的私钥写进 **`.env`**（已 gitignore，绝不进 GitHub）；
-5. 生成 `blockchain/miner.key` / `miner.addr` / `password.txt` 供节点解锁矿工账户。
+1. Uses `eth-account` to generate 7 accounts: `deployer / organizer / buyerA / buyerB / verifier / attacker / miner`;
+2. Writes them into `alloc` in `blockchain/genesis.json`, 1000 ETH each;
+3. Writes the `miner` address into `extradata` as the Clique signer;
+4. Writes the private keys of the 6 business accounts into **`.env`** (already gitignored, never committed to GitHub);
+5. Generates `blockchain/miner.key` / `miner.addr` / `password.txt` so the node can unlock the miner account.
 
-`genesis.json` 关键字段：
+Key fields of `genesis.json`:
 
 ```json
 {
@@ -49,27 +49,27 @@ python blockchain/init_chain.py
     "clique": { "period": 2, "epoch": 30000 }
   },
   "gasLimit": "0x1c9c380",
-  "extradata": "0x<32字节0> + <矿工地址20字节> + <65字节0>",
-  "alloc": { "<账户>": { "balance": "0x3635c9adc5dea00000" } }
+  "extradata": "0x<32 bytes of zero> + <miner address, 20 bytes> + <65 bytes of zero>",
+  "alloc": { "<account>": { "balance": "0x3635c9adc5dea00000" } }
 }
 ```
 
-| 参数 | 取值 | 说明 |
+| Parameter | Value | Notes |
 |---|---|---|
-| chainId | 1337 | 与 `.env` 的 `CHAIN_ID` 一致，Web3.py 会校验 |
-| 共识 | Clique PoA | `period=2`，每 2 秒出一个块，交易 2–4 秒确认 |
-| gasLimit | 30,000,000 | 部署合约约用 3.3M，留足余量 |
-| 预置余额 | 1000 ETH / 账户 | 私有链没有水龙头，测试币靠 genesis 预置 |
+| chainId | 1337 | Matches `CHAIN_ID` in `.env`; Web3.py validates it |
+| Consensus | Clique PoA | `period=2`, one block every 2 seconds, transactions confirm in 2–4 seconds |
+| gasLimit | 30,000,000 | Deployment uses about 3.3M, leaving ample headroom |
+| Pre-funded balance | 1000 ETH / account | The private chain has no faucet, so test coins are pre-funded in genesis |
 
-## 3. 启动 / 停止节点
+## 3. Starting / stopping the node
 
 ```bash
-./blockchain/start_node.sh            # 首次会自动 import 矿工私钥 + init genesis
-./blockchain/start_node.sh --reset    # 清空链数据重新开始（演示前常用）
-./blockchain/stop_node.sh             # 停止
+./blockchain/start_node.sh            # On first run it automatically imports the miner key + inits genesis
+./blockchain/start_node.sh --reset    # Wipes the chain data and starts over (common before a demo)
+./blockchain/stop_node.sh             # Stops the node
 ```
 
-启动参数（见 `start_node.sh`）：
+Startup arguments (see `start_node.sh`):
 
 ```bash
 geth --datadir blockchain/data \
@@ -81,19 +81,19 @@ geth --datadir blockchain/data \
      --nodiscover --port 30304 --ipcdisable
 ```
 
-- `--http.addr 127.0.0.1`：**只监听本机**。在 AWS 上要远程访问时，用 SSH 隧道而不是把 8545 开到公网：
+- `--http.addr 127.0.0.1`: **listens on the local machine only**. For remote access on AWS, use an SSH tunnel instead of opening 8545 to the public internet:
   ```bash
   ssh -i FTEC5520.pem -L 8545:127.0.0.1:8545 ubuntu@<EC2-IP>
   ```
-- 日志在 `blockchain/geth.log`，PID 在 `blockchain/geth.pid`。
+- Logs are in `blockchain/geth.log`, the PID in `blockchain/geth.pid`.
 
-### 验证节点真的在出块
+### Verifying that the node really is producing blocks
 
 ```bash
 curl -s -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
   http://127.0.0.1:8545
-# {"jsonrpc":"2.0","id":1,"result":"0x1a"}   ← 数值持续增长
+# {"jsonrpc":"2.0","id":1,"result":"0x1a"}   ← the value keeps increasing
 ```
 
 ```bash
@@ -105,51 +105,51 @@ print("balance:", w3.from_wei(w3.eth.get_balance(w3.eth.accounts[0] if w3.eth.ac
 PY
 ```
 
-> 注意：Clique 链的 `extraData` 是 97 字节，**必须**注入 POA 中间件，否则 web3 解析区块会报错。
-> 这一点已经封装在 `backend/chain.py`：
-> `w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)`。
+> Note: a Clique chain's `extraData` is 97 bytes, so the POA middleware **must** be injected, otherwise web3 errors out when parsing blocks.
+> This is already wrapped in `backend/chain.py`:
+> `w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)`.
 
-## 4. 部署合约
+## 4. Deploying the contract
 
 ```bash
-python backend/fetch_deps.py      # 首次：下载 OpenZeppelin 5.0.2 到 contracts/lib
-python backend/compile.py         # 编译，产出 contracts/build/ConcertTicket.json（ABI + bytecode）
-python backend/deploy.py          # 部署，写 config/network.json
+python backend/fetch_deps.py      # First run: downloads OpenZeppelin 5.0.2 into contracts/lib
+python backend/compile.py         # Compiles and produces contracts/build/ConcertTicket.json (ABI + bytecode)
+python backend/deploy.py          # Deploys and writes config/network.json
 ```
 
-`deploy.py` 会打印并落盘：
+`deploy.py` prints and persists:
 
 ```
-[deploy] 合约地址 0x46335ea6e72DD537A5f18402b440DDdEA824cC1e
-[deploy] 区块 190，gas 3294415，代码 14339 bytes
-[deploy] 配置已写入 config/network.json
+[deploy] contract address 0x46335ea6e72DD537A5f18402b440DDdEA824cC1e
+[deploy] block 190, gas 3294415, code 14339 bytes
+[deploy] config written to config/network.json
 [deploy] self-check: nextEventId=1 nextTokenId=1 owner=0xac58...
 ```
 
-`config/network.json` 是**唯一**的合约地址来源，页面和接口都从这里读，换链只需改这一个文件。
+`config/network.json` is the **only** source of the contract address; both the pages and the API read it from there, so switching chains requires changing just this one file.
 
-## 5. 映射到任务书的要求
+## 5. Mapping to the project brief requirements
 
-| 任务书要求 | 本仓库对应 |
+| Project brief requirement | Where it lives in this repository |
 |---|---|
-| 01 按 Lab 1 配置 AWS/Linux、genesis、Geth、账户、节点启动 | 本文档 + `blockchain/init_chain.py` + `start_node.sh` |
-| 02 验证节点能收测试交易并写入区块 | `scripts/check_chain.py` 与本文 RPC 验证命令 |
-| 03 启用受控 HTTP RPC，Web3.py 能读 block_number / chain_id | `backend/chain.py: Chain.chain_status()` |
-| 04 准备 organizer / buyerA / buyerB / verifier / attacker | `blockchain/init_chain.py`（7 个账户，含 deployer/miner） |
-| 05 接收 .sol/ABI/Bytecode，部署并记录地址与哈希 | `backend/compile.py`、`backend/deploy.py`、`config/network.json` |
-| 06 封装 `ticket_api.py` | `backend/ticket_api.py` |
-| 07 把签名/nonce/gas/异常/回执封装在接口内部 | `backend/chain.py: Chain.send()` + `TxResult` |
-| 08 与成员 4 联调 | 五个 Streamlit 页面全部走 `ticket_api` |
-| 09 重启节点、重新部署、更新地址的运行说明 | `docs/RUNBOOK.md` |
+| 01 Configure AWS/Linux, genesis, Geth, accounts and node startup per Lab 1 | This document + `blockchain/init_chain.py` + `start_node.sh` |
+| 02 Verify the node accepts test transactions and writes them into blocks | `scripts/check_chain.py` and the RPC verification commands in this document |
+| 03 Enable controlled HTTP RPC so Web3.py can read block_number / chain_id | `backend/chain.py: Chain.chain_status()` |
+| 04 Prepare organizer / buyerA / buyerB / verifier / attacker | `blockchain/init_chain.py` (7 accounts, including deployer/miner) |
+| 05 Receive the .sol/ABI/Bytecode, deploy, and record the address and hash | `backend/compile.py`, `backend/deploy.py`, `config/network.json` |
+| 06 Wrap `ticket_api.py` | `backend/ticket_api.py` |
+| 07 Encapsulate signing/nonce/gas/exceptions/receipts inside the API | `backend/chain.py: Chain.send()` + `TxResult` |
+| 08 Integrate with Member 4 | All five Streamlit pages go through `ticket_api` |
+| 09 Run instructions for restarting the node, redeploying and updating the address | `docs/RUNBOOK.md` |
 
-## 6. 回到 AWS 私有链（实例重新开机后）
+## 6. Returning to the AWS private chain (after the instance is started again)
 
-1. 启动 EC2，确认 geth 进程在跑、安全组**不要**放行 8545；
-2. 本机开隧道：`ssh -i FTEC5520.pem -L 8545:127.0.0.1:8545 ubuntu@<EC2-IP>`；
-3. 编辑 `.env`：`RPC_URL=http://127.0.0.1:8545`、`CHAIN_ID=<AWS 链的 chainId>`；
-4. 把 AWS 上那 6 个测试账户的私钥填进 `.env`（否则代签失败）；
-5. `python backend/deploy.py` 重新部署，`config/network.json` 会自动更新；
-6. 重启 Streamlit。
+1. Start the EC2 instance, confirm the geth process is running, and make sure the security group does **not** allow 8545;
+2. Open a tunnel from the local machine: `ssh -i FTEC5520.pem -L 8545:127.0.0.1:8545 ubuntu@<EC2-IP>`;
+3. Edit `.env`: `RPC_URL=http://127.0.0.1:8545`, `CHAIN_ID=<chainId of the AWS chain>`;
+4. Put the private keys of those 6 test accounts on AWS into `.env` (otherwise the delegated signing fails);
+5. Run `python backend/deploy.py` to redeploy; `config/network.json` updates automatically;
+6. Restart Streamlit.
 
-> **安全要求（任务书原文）**：不要把 AWS 密钥或测试账户私钥传进 GitHub；不要直接把 8545 暴露到公网。
-> 本仓库的 `.gitignore` 已排除 `.env`、`blockchain/miner.key`、`blockchain/data/`。
+> **Security requirements (quoted from the project brief)**: do not push AWS credentials or test account private keys to GitHub; do not expose 8545 directly to the public internet.
+> This repository's `.gitignore` already excludes `.env`, `blockchain/miner.key` and `blockchain/data/`.

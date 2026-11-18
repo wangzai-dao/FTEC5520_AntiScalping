@@ -1,18 +1,21 @@
-"""用 Chrome DevTools Protocol 给 Streamlit 页面拍全页截图。
+"""Take full-page screenshots of the Streamlit pages via the Chrome DevTools Protocol.
 
-!! 已标注为遗留脚本（legacy），不再维护：
-   - 其中的 CHROME 路径是 macOS 专用；
-   - 页面路由与中文按钮文本写于界面汉化时期，现已改为英文界面，点击序列会对不上；
-   - 交付的 6 张截图是手工截取的（步骤见 docs/DEMO_SCRIPT.md）。
-保留本文件仅供追溯，组内如需要可自行改造。
+!! Marked as legacy; no longer maintained:
+   - the CHROME path inside is macOS-only;
+   - the page routes and Chinese button labels date from the interface-localisation period,
+     the UI is English now, so the click sequences will not match;
+   - the 6 delivered screenshots were captured by hand (steps in docs/DEMO_SCRIPT.md).
+Kept for traceability only; the team can rework it if needed.
 
-为什么要 CDP：`chrome --screenshot` 在 load 事件后立刻截图，而 Streamlit 是
-websocket 驱动的客户端渲染，截到的是骨架屏。这里显式等待页面渲染完成，
-并且可以按脚本点击按钮（生成二维码、跳转验票页、执行核验），把交互结果一起拍下来。
+Why CDP: `chrome --screenshot` captures right after the load event, while Streamlit is a
+websocket-driven, client-rendered app, so what you get is the skeleton screen. Here we
+explicitly wait for the page to finish rendering, and we can also click buttons from the
+script (generate the QR code, jump to the verification page, run the check), capturing the
+interaction results as well.
 
-用法:
-    .venv/bin/python scripts/capture_screenshots.py            # 全部页面
-    .venv/bin/python scripts/capture_screenshots.py --only 04  # 只拍某一页
+Usage:
+    .venv/bin/python scripts/capture_screenshots.py            # all pages
+    .venv/bin/python scripts/capture_screenshots.py --only 04  # capture a single page
 """
 
 from __future__ import annotations
@@ -33,20 +36,20 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PORT = 9333
 OUT = ROOT / "results" / "screenshots"
 
-# (文件名, 起始路由, 点击序列)
+# (file name, start route, click sequence)
 SHOTS = [
-    ("01_总览", "/", []),
-    ("02_活动管理", "/activity", []),
-    ("03_购票", "/buy?account=buyerB", ["立即购买"]),
-    ("04_我的门票", "/my_tickets?account=buyerA", ["生成签名二维码"]),
-    ("05_二手市场", "/resale", []),
-    ("06_工作人员验票", "/my_tickets?account=buyerB", ["生成签名二维码", "送验票页", "验证票根", "首次核销"]),
+    ("01_overview", "/", []),
+    ("02_activity_management", "/activity", []),
+    ("03_ticket_purchase", "/buy?account=buyerB", ["Buy now"]),
+    ("04_my_tickets", "/my_tickets?account=buyerA", ["Generate signed QR code"]),
+    ("05_resale_market", "/resale", []),
+    ("06_staff_verification", "/my_tickets?account=buyerB", ["Generate signed QR code", "Send to verification page", "Verify ticket stub", "First redemption"]),
 ]
 
 
 class CDP:
     def __init__(self, ws_url: str) -> None:
-        # Chrome 会拒绝带 Origin 头的 CDP 握手，必须 suppress_origin
+        # Chrome rejects a CDP handshake that carries an Origin header, so suppress_origin is required
         self.ws = websocket.create_connection(ws_url, timeout=90, suppress_origin=True)
         self.seq = 0
 
@@ -119,7 +122,7 @@ def start_chrome() -> subprocess.Popen:
             return proc
         except Exception:  # noqa: BLE001
             time.sleep(0.5)
-    raise RuntimeError("Chrome 调试端口没起来")
+    raise RuntimeError("the Chrome debugging port did not come up")
 
 
 def new_tab() -> str:
@@ -146,8 +149,8 @@ def shoot(cdp: CDP, base: str, name: str, route: str, clicks: list[str]) -> None
 
     for text in clicks:
         if not cdp.click(text):
-            print(f"[shot] 警告：没找到按钮「{text}」")
-        time.sleep(4.5)  # 等 Streamlit rerun + 链上交易回执
+            print(f"[shot] warning: button \"{text}\" not found")
+        time.sleep(4.5)  # wait for the Streamlit rerun + the on-chain transaction receipt
         cdp.ready(timeout=30)
 
     time.sleep(2)
@@ -166,7 +169,7 @@ def shoot(cdp: CDP, base: str, name: str, route: str, clicks: list[str]) -> None
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8501")
-    ap.add_argument("--only", default="", help="只截某个页面，如 04")
+    ap.add_argument("--only", default="", help="capture only one page, e.g. 04")
     args = ap.parse_args()
 
     proc = start_chrome()

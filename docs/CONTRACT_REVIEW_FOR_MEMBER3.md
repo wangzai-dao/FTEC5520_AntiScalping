@@ -1,68 +1,68 @@
-# 成员 2 / 3 合约评审：合并版 `ConcertTicket.sol` 的问题清单
+# Member 2 / 3 Contract Review: Issue List for the Merged `ConcertTicket.sol`
 
-> 评审对象：`contracts/ConcertTicket.sol`（`chunyusongyue-creator/FTEC5520-Final`，commit `61665bc`）
-> 结论：**功能可以跑通，18 项测试里合约相关的用例全部按预期通过**（见 `results/demo_report.md`）。
-> 下面按严重程度列出建议改动，交给成员 3 确认是否采纳。
-> 本次成员 1/4 的交付**没有修改合约源码**，只在 Python 层规避了 `getTicket` 缺失等问题。
+> Review target: `contracts/ConcertTicket.sol` (`chunyusongyue-creator/FTEC5520-Final`, commit `61665bc`)
+> Conclusion: **the functionality works end to end, and all contract-related cases among the 18 tests pass as expected** (see `results/demo_report.md`).
+> The suggested changes are listed below in order of severity, for Member 3 to confirm whether to adopt them.
+> This delivery by Members 1/4 **did not modify the contract source code**; it only worked around issues such as the missing `getTicket` at the Python layer.
 
-## 一、建议修复（会影响实际使用）
+## I. Recommended Fixes (Affecting Actual Use)
 
-### 1. `withdrawPlatformFees()` 在 owner 变更后取不出平台费（中）
+### 1. `withdrawPlatformFees()` cannot withdraw platform fees after the owner changes (Medium)
 
 ```solidity
-pendingPlatformFees[owner()] += platformFee;      // 记账写死给 owner()
+pendingPlatformFees[owner()] += platformFee;      // bookkeeping is hard-coded to owner()
 ...
-uint256 amount = pendingPlatformFees[msg.sender]; // 提现却用 msg.sender
+uint256 amount = pendingPlatformFees[msg.sender]; // but withdrawal uses msg.sender
 ```
 
-`withdrawPlatformFees()` 带 `onlyOwner`，所以只要 owner 没变，两者相等、能取出来。
-但一旦 `transferOwnership()` 把 owner 换成别人：
+`withdrawPlatformFees()` carries `onlyOwner`, so as long as the owner has not changed, the two are equal and the fees can be withdrawn.
+But once `transferOwnership()` replaces the owner with someone else:
 
-- 旧 owner 名下的手续费再也没人能取（函数只允许新 owner 调用，读的却是新 owner 的余额 = 0）；
-- 新 owner 也取不到旧账。
+- The fees recorded under the old owner can no longer be withdrawn by anyone (the function only allows the new owner to call it, yet it reads the new owner's balance = 0);
+- The new owner cannot access the old balance either.
 
-**建议**：记账和提现都用同一个地址来源，例如
+**Recommendation**: use the same address source for both bookkeeping and withdrawal, for example
 
 ```solidity
 pendingPlatformFees[owner()] += platformFee;
-uint256 amount = pendingPlatformFees[owner()];   // 而不是 msg.sender
+uint256 amount = pendingPlatformFees[owner()];   // instead of msg.sender
 ```
 
-### 2. `buyResale()` 缺少演出时间/活动状态校验（低-中）
+### 2. `buyResale()` lacks validation of event time / event status (Low-Medium)
 
-`listForResale()` 要求 `block.timestamp < eventTime`，但 `buyResale()` 只检查 `isListed`。
-于是演出开始（甚至结束）后，之前挂的单仍然可以被买走——买家付了钱却进不了场。
-同理，活动被 `setEventActive(false)` 下架后，二级市场照常成交。
+`listForResale()` requires `block.timestamp < eventTime`, but `buyResale()` only checks `isListed`.
+As a result, after the event starts (or even ends), an earlier listing can still be bought — the buyer pays but cannot enter.
+Likewise, after an event is taken down with `setEventActive(false)`, the secondary market still completes trades.
 
-**建议**：在 `buyResale` 里补
+**Recommendation**: add the following inside `buyResale`
 
 ```solidity
 require(concert.active, "Event is not active");
 require(block.timestamp < concert.eventTime, "Event already started");
 ```
 
-### 3. `getMaxResalePrice()` 对演出结束后 / 不存在的 tokenId 行为不明确（低）
+### 3. `getMaxResalePrice()` behaves ambiguously for a finished event / a nonexistent tokenId (Low)
 
-- 演出时间已过时 `concert.eventTime - block.timestamp` 会 **下溢 revert**，调用方必须先自己判断时间；
-- tokenId 不存在时 `tokenToEvent = 0`、原价 0，函数**返回 0 而不是 revert**，容易被误读成"这张票不能卖"。
+- Once the event time has passed, `concert.eventTime - block.timestamp` **underflows and reverts**, so the caller must check the time itself first;
+- When the tokenId does not exist, `tokenToEvent = 0` and the original price is 0, so the function **returns 0 instead of reverting**, which is easily misread as "this ticket cannot be sold".
 
-**建议**：
+**Recommendation**:
 
 ```solidity
 require(tokenToEvent[tokenId] != 0, "Ticket does not exist");
 require(block.timestamp < concert.eventTime, "Event already started");
 ```
 
-（成员 1 的 `ticket_api.get_max_resale_price()` 已经做了异常保护，页面不会崩。）
+(Member 1's `ticket_api.get_max_resale_price()` already performs exception protection, so the page will not crash.)
 
-### 4. 缺少 `getTicket(tokenId)` 只读聚合接口（低，影响前端）
+### 4. Missing the read-only aggregate interface `getTicket(tokenId)` (Low, affects the frontend)
 
-文档第 08 节约定了 `getTicket(tokenId)`，合并版合约里没有。前端要显示"票主 + 活动 + 转售次数 + 是否已用"
-得连读 `ownerOf`、`tickets`、`tokenToEvent`、`concertEvents` 四次，而且合约**没继承 ERC721Enumerable**，
-"我的门票"页面拿不到持仓列表。
+Section 08 of the documentation specifies `getTicket(tokenId)`, but the merged contract does not have it. To display "ticket owner + event + resale count + whether used", the frontend
+has to read `ownerOf`, `tickets`, `tokenToEvent` and `concertEvents` four times in a row, and the contract **does not inherit ERC721Enumerable**,
+so the "My Tickets" page cannot obtain the list of held tickets.
 
-现在的做法：成员 1 在 `backend/ticket_api.py` 里用事件扫描 + 逐个 `ownerOf` 校验补出来
-（`tokens_of()` / `get_ticket()`），只读、不改合约。如果后续要优化 Gas/请求数，建议合约加：
+The current approach: Member 1 reconstructs it in `backend/ticket_api.py` using event scanning plus a per-token `ownerOf` check
+(`tokens_of()` / `get_ticket()`), read-only, without modifying the contract. If Gas/request count is to be optimized later, the recommendation is to add to the contract:
 
 ```solidity
 function getTicket(uint256 tokenId) external view returns (
@@ -71,48 +71,48 @@ function getTicket(uint256 tokenId) external view returns (
 ) { ... }
 ```
 
-### 5. `buyResale` 的资金流是"推"给卖家的（低）
+### 5. `buyResale` pushes funds to the seller (Low)
 
 ```solidity
 (bool success, ) = payable(seller).call{value: sellerAmount}("");
 require(success, "Payment to seller failed");
 ```
 
-如果卖家是拒收 ETH 的合约，这张票就永远卖不掉（每次买都会 revert）。
-EOA 卖家不受影响。更稳的做法是像 `pendingProceeds` 一样改成拉取式：
+If the seller is a contract that rejects ETH, this ticket can never be sold (every purchase will revert).
+EOA sellers are unaffected. A more robust approach is to switch to a pull model, as with `pendingProceeds`:
 
 ```solidity
-pendingResaleProceeds[seller] += sellerAmount;   // 卖家自己 withdraw
+pendingResaleProceeds[seller] += sellerAmount;   // the seller withdraws themselves
 ```
 
-## 二、设计限制（不一定要改，但报告里应该写）
+## II. Design Limitations (they do not necessarily have to be fixed, but they should be written in the report)
 
-| 现象 | 说明 |
+| Observation | Explanation |
 |---|---|
-| 一级限购只统计 `purchasedByWallet` | `buyResale` 买入不计入限购，可以靠"买二手"绕过每钱包限购；合约本来就无法阻止一人多钱包，报告里已列为局限 |
-| `checkIn` 不校验持票人身份 | 验票员可以对任意未使用的票核销（包括别人持有的）。本项目用"持票人签名二维码"在链下补这一层，合约层只保证"一票只能核销一次" |
-| `approve` / `setApprovalForAll` 仍在 | 可以授权，但 `transferFrom` / `safeTransferFrom` 全被 override 成 revert，授权没有实际用途，可理解为无害的残留接口 |
-| `purchaseTickets` 要求金额**精确相等** | 多付 1 wei 直接 revert，而不是退款。前端必须按票价算准数额（成员 1 的 `buy_ticket` 已按 `price × quantity` 计算） |
-| 合约没有暂停开关 | 出事只能靠 `setEventActive(false)` 停单个活动，没有全局 pause |
+| The primary-market per-wallet limit only counts `purchasedByWallet` | Tickets bought through `buyResale` are not counted toward the limit, so the per-wallet limit can be bypassed by "buying second-hand"; the contract inherently cannot stop one person from using multiple wallets, which is already listed as a limitation in the report |
+| `checkIn` does not verify the identity of the ticket holder | A verifier can check in any unused ticket (including one held by someone else). This project supplies this layer off-chain through a "ticket-holder-signed QR code"; the contract layer only guarantees that "a ticket can be checked in only once" |
+| `approve` / `setApprovalForAll` still exist | Approval is possible, but `transferFrom` / `safeTransferFrom` are all overridden to revert, so approvals have no practical use and can be understood as harmless leftover interfaces |
+| `purchaseTickets` requires the amount to be **exactly equal** | Paying 1 wei extra reverts directly instead of refunding. The frontend must compute the exact amount from the ticket price (Member 1's `buy_ticket` already computes `price × quantity`) |
+| The contract has no pause switch | When something goes wrong, the only option is to stop a single event with `setEventActive(false)`; there is no global pause |
 
-## 三、`Helper.sol` 的测试脚本
+## III. Test Script for `Helper.sol`
 
-1. `runAllTests()` 只花 **1 ETH**（买 1 张票），而 README 让你在 Remix 的 Value 里填 `5 ether`。
-   填 5 ETH 也能跑（剩余部分最后退回），但文档数字对不上，建议统一成 1 ETH。
-2. `Helper` 的构造函数里 `new ConcertTicket()`，所以 **Helper 自己才是 owner**，
-   `setVerifier(address(this), true)` 才能成功。如果改成"传入已部署的主合约地址"，这行会直接 revert。
-   若要做"对已部署实例做集成测试"，必须让主合约 owner 先授权 Helper。
-3. 第 3 步"买 2 张触发限购"实际被 `Wallet limit exceeded` 拦住，
-   这是合约里 **先校验限购、后校验金额** 的顺序决定的——顺序若反过来，同样的测试会以
-   `Incorrect ETH amount` 失败，测试结论就会误判。建议测试里显式写清预期 revert 原因。
+1. `runAllTests()` only spends **1 ETH** (buying 1 ticket), while the README tells you to enter `5 ether` in Remix's Value field.
+   Entering 5 ETH also works (the remainder is refunded at the end), but the documentation figures do not match, so 1 ETH should be used consistently.
+2. The `Helper` constructor calls `new ConcertTicket()`, so **Helper itself is the owner**,
+   which is the only reason `setVerifier(address(this), true)` succeeds. If it were changed to "pass in the address of an already deployed main contract", this line would revert directly.
+   To run "integration tests against a deployed instance", the owner of the main contract must first authorize Helper.
+3. Step 3, "buy 2 tickets to trigger the per-wallet limit", is actually stopped by `Wallet limit exceeded`,
+   which follows from the contract's order of **validating the limit first and the amount second** — if the order were reversed, the same test would fail with
+   `Incorrect ETH amount`, and the test conclusion would be misjudged. The tests should state the expected revert reason explicitly.
 
-## 四、本次交付对合约的依赖清单
+## IV. List of Contract Dependencies for This Delivery
 
-| 页面 / 接口 | 依赖的合约函数 |
+| Page / interface | Contract functions depended on |
 |---|---|
-| 活动管理 | `createEvent` `setEventActive` `setPresaleActive` `setWhitelistBatch` `concertEvents` `nextEventId` |
-| 购票 | `canPurchase` `purchaseTickets` `nextTokenId` `remainingSupply` |
-| 我的门票 | `ownerOf` `tickets` `tokenToEvent` `getMaxResalePrice` |
-| 二手市场 | `listForResale` `cancelListing` `buyResale` |
-| 验票 | `verifiers` `setVerifier` `checkIn` |
-| 证据 | `TicketPurchased` `TicketResold` `TicketCheckedIn` `Transfer` 事件 |
+| Event management | `createEvent` `setEventActive` `setPresaleActive` `setWhitelistBatch` `concertEvents` `nextEventId` |
+| Ticket purchase | `canPurchase` `purchaseTickets` `nextTokenId` `remainingSupply` |
+| My Tickets | `ownerOf` `tickets` `tokenToEvent` `getMaxResalePrice` |
+| Secondary market | `listForResale` `cancelListing` `buyResale` |
+| Ticket verification | `verifiers` `setVerifier` `checkIn` |
+| Evidence | `TicketPurchased` `TicketResold` `TicketCheckedIn` `Transfer` events |

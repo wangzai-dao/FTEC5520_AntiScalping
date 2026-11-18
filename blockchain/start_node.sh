@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 启动本地 Geth 私有链（Clique PoA，chainId 1337）。
-# 用法: ./blockchain/start_node.sh [--reset]
-# 日志: blockchain/geth.log    PID: blockchain/geth.pid
+# Start the local Geth private chain (Clique PoA, chainId 1337).
+# Usage: ./blockchain/start_node.sh [--reset]
+# Log: blockchain/geth.log    PID: blockchain/geth.pid
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,17 +12,17 @@ RPC_PORT="${RPC_PORT:-8545}"
 P2P_PORT="${P2P_PORT:-30304}"
 
 if [[ ! -x "$GETH" ]]; then
-  echo "找不到 geth: $GETH" >&2
-  echo "请先运行: ./tools/get_geth.sh" >&2
+  echo "Cannot find geth: $GETH" >&2
+  echo "Run this first: ./tools/get_geth.sh" >&2
   exit 1
 fi
 if [[ ! -f "$ROOT/blockchain/genesis.json" ]]; then
-  echo "缺少 blockchain/genesis.json，请先运行: python blockchain/init_chain.py" >&2
+  echo "blockchain/genesis.json is missing; run this first: python blockchain/init_chain.py" >&2
   exit 1
 fi
 
 if [[ "${1:-}" == "--reset" ]]; then
-  echo "[node] --reset：停止节点并删除链数据"
+  echo "[node] --reset: stopping the node and deleting chain data"
   "$ROOT/blockchain/stop_node.sh" || true
   rm -rf "$DATADIR"
 fi
@@ -31,18 +31,18 @@ MINER="$(cat "$ROOT/blockchain/miner.addr")"
 PASSWORD="$ROOT/blockchain/password.txt"
 
 if [[ ! -d "$DATADIR/geth/chaindata" ]]; then
-  echo "[node] 首次启动：导入矿工账户并写入 genesis"
+  echo "[node] first start: importing the miner account and writing genesis"
   "$GETH" --datadir "$DATADIR" account import \
       --password "$PASSWORD" "$ROOT/blockchain/miner.key" >/dev/null
   "$GETH" --datadir "$DATADIR" init "$ROOT/blockchain/genesis.json" >/dev/null
 fi
 
 if [[ -f "$ROOT/blockchain/geth.pid" ]] && kill -0 "$(cat "$ROOT/blockchain/geth.pid")" 2>/dev/null; then
-  echo "[node] 已经在运行，PID $(cat "$ROOT/blockchain/geth.pid")"
+  echo "[node] already running, PID $(cat "$ROOT/blockchain/geth.pid")"
   exit 0
 fi
 
-echo "[node] 启动 Geth：chainId=$CHAIN_ID RPC=http://127.0.0.1:$RPC_PORT miner=$MINER"
+echo "[node] starting Geth: chainId=$CHAIN_ID RPC=http://127.0.0.1:$RPC_PORT miner=$MINER"
 nohup "$GETH" \
   --datadir "$DATADIR" \
   --networkid "$CHAIN_ID" \
@@ -61,8 +61,8 @@ sleep 3
 if curl -sS -m 5 -X POST -H 'Content-Type: application/json' \
     --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' \
     "http://127.0.0.1:$RPC_PORT" | grep -q result; then
-  echo "[node] RPC 就绪（PID $(cat "$ROOT/blockchain/geth.pid")，日志 blockchain/geth.log）"
+  echo "[node] RPC ready (PID $(cat "$ROOT/blockchain/geth.pid"), log blockchain/geth.log)"
 else
-  echo "[node] RPC 未就绪，请查看 blockchain/geth.log" >&2
+  echo "[node] RPC not ready, check blockchain/geth.log" >&2
   exit 1
 fi

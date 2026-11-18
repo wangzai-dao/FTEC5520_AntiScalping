@@ -1,24 +1,28 @@
 #!/usr/bin/env python
-"""按「7 个测试账户」逐账户核验（对应 docs/ACCOUNTS.md 与队友给的对照表）。
+"""Per-account verification against the "7 test accounts" (matches docs/ACCOUNTS.md and the
+comparison table our teammates handed over).
 
-为什么需要这个脚本
-------------------
-`tests/test_workflow.py` 覆盖 T01–T18 及 E*/B* 系列，但**没有**覆盖队员表里写的
-T19 / T20 / T23 / T24 所对应的动作：
+Why this script exists
+----------------------
+`tests/test_workflow.py` covers T01-T18 plus the E*/B* series, but it does **not** cover the
+actions that the teammate table maps to T19 / T20 / T23 / T24:
 
-    * deployer 收取 5% 平台手续费、并提取（withdrawPlatformFees）
-    * organizer 提取票款（withdrawProceeds）
-    * buyerB 作为接盘方，转售后的 NFT 归属（ownerOf / resaleCount）
-    * miner 每 2 秒出块
+    * deployer collects the 5% platform fee and withdraws it (withdrawPlatformFees)
+    * organizer withdraws the ticket proceeds (withdrawProceeds)
+    * buyerB is the buyer on the receiving end of a resale, so NFT ownership after the
+      resale matters (ownerOf / resaleCount)
+    * miner produces a block every 2 seconds
 
-本脚本对这些"账户专属职责"做一次真实链上核验（该发交易就发交易，该被拒就要求被拒），
-再把 `results/test_results.csv` 里已有的用例按 actor 归到每个账户，产出：
+This script performs a real on-chain verification of these "account-specific duties"
+(it sends a transaction where a transaction should be sent, and requires a rejection where
+a rejection is expected), then groups the existing cases from `results/test_results.csv`
+by actor for every account and produces:
 
-    results/account_verification.md     人读的逐账户报告（可直接发队友）
-    results/account_check.json          机读的核验明细
+    results/account_verification.md     human-readable per-account report (can be sent to teammates)
+    results/account_check.json          machine-readable verification details
 
-用法
-----
+Usage
+-----
     ./blockchain/start_node.sh
     .venv/bin/python scripts/check_accounts.py
 """
@@ -40,7 +44,7 @@ from backend import ticket_api as api  # noqa: E402
 RESULTS = ROOT / "results"
 CHECKS: list[dict] = []
 
-# 队友那张表里"对应哪几条测试"一列 = docs/ACCOUNTS.md 的写法
+# The "which cases does this correspond to" column of the teammate table = the wording in docs/ACCOUNTS.md
 TEAMMATE_CASES = {
     "deployer": "T19 / T24",
     "organizer": "T01 / T02 / T20",
@@ -48,17 +52,17 @@ TEAMMATE_CASES = {
     "buyerB": "T14 / T23",
     "verifier": "T15 / T16",
     "attacker": "T04 / T06 / T08 / T10",
-    "miner": "后台一直在跑",
+    "miner": "running in the background the whole time",
 }
 
 IDENTITY = {
-    "deployer": ("平台方（部署合约的人）", "合约 owner；设置验票员；收 5% 平台手续费"),
-    "organizer": ("主办方（演唱会公司）", "创建活动、开关预售、管白名单、收票款"),
-    "buyerA": ("正常买家（在白名单里）", "预售期买票、挂二手、被扫码入场"),
-    "buyerB": ("第二个正常买家", "转售后的接盘方，验证 NFT 归属变了"),
-    "verifier": ("现场工作人员（验票员）", "扫码核销，把票标为「已用」"),
-    "attacker": ("黄牛", "专门违规：非白名单抢预售、超限购、超价转售"),
-    "miner": ("出块的人（Clique 授权节点）", "每 2 秒打包一个区块"),
+    "deployer": ("Platform side (the person who deploys the contract)", "Contract owner; sets the verifier; collects the 5% platform fee"),
+    "organizer": ("Organizer (the concert company)", "Creates events, toggles the presale, manages the whitelist, collects ticket proceeds"),
+    "buyerA": ("Normal buyer (on the whitelist)", "Buys tickets during the presale, lists them for resale, gets scanned in at the gate"),
+    "buyerB": ("Second normal buyer", "The buyer who takes over after a resale; verifies that NFT ownership has changed"),
+    "verifier": ("On-site staff (ticket verifier)", "Scans and redeems tickets, marks them as \"used\""),
+    "attacker": ("Scalper", "Deliberately breaks the rules: grabs presale tickets while not whitelisted, exceeds the purchase limit, resells above the price cap"),
+    "miner": ("The block producer (Clique authorized signer)", "Packs one block every 2 seconds"),
 }
 
 ORDER = ["deployer", "organizer", "buyerA", "buyerB", "verifier", "attacker", "miner"]
@@ -79,18 +83,18 @@ def eth(who: str) -> float:
 
 
 def reason_of(err: object) -> str:
-    """把 revert 结果翻译成人话（合约用自定义 error，只有 4 字节 selector）。"""
+    """Translate a revert result into plain language (the contract uses custom errors, so only the 4-byte selector is available)."""
     text = str(err or "")
     if text.startswith("0x118cdaa7"):
-        return "拒绝：OwnableUnauthorizedAccount（调用者不是 owner）"
-    return ("拒绝：" + text[:70]) if text else "拒绝（无返回原因）"
+        return "Rejected: OwnableUnauthorizedAccount (the caller is not the owner)"
+    return ("Rejected: " + text[:70]) if text else "Rejected (no reason returned)"
 
 
 def token_transfers(token_id: int) -> list[dict]:
-    """单张票的全部 Transfer 记录（按区块升序）。
+    """All Transfer records of a single ticket (ascending by block).
 
-    注意：`api.transfer_history(limit)` 取的是**全站最近 N 条**转移，不是单张票的，
-    所以这里直接按 topics[3] = tokenId 过滤日志。
+    Note: `api.transfer_history(limit)` returns the **most recent N transfers site-wide**, not those
+    of a single ticket, so the logs are filtered directly by topics[3] = tokenId.
     """
     w3 = api.get_w3()
     settings = api.get_settings()
@@ -104,10 +108,10 @@ def token_transfers(token_id: int) -> list[dict]:
 
 
 # ----------------------------------------------------------------------
-# miner：出块节奏
+# miner: block production cadence
 # ----------------------------------------------------------------------
 def check_miner() -> None:
-    print("\n[1/7] miner —— 出块（Clique PoA，2s/块）")
+    print("\n[1/7] miner -- block production (Clique PoA, 2s per block)")
     w3 = api.get_w3()
     b0 = w3.eth.block_number
     t0 = time.time()
@@ -116,104 +120,104 @@ def check_miner() -> None:
     dt = time.time() - t0
     produced = b1 - b0
     ok = produced >= 2
-    record("miner", "6 秒内新增区块数", "≥2 个（2s/块）", f"{produced} 个（区块 {b0} → {b1}，{dt:.1f}s）",
+    record("miner", "New blocks within 6 seconds", ">=2 (2s per block)", f"{produced} (blocks {b0} -> {b1}, {dt:.1f}s)",
            "PASS" if ok else "FAIL")
     miner_addr = api.get_accounts().get("miner")
     if miner_addr:
-        record("miner", "是否为授权签名者（miner 账户）", "地址存在且持续出块",
+        record("miner", "Is an authorized signer (miner account)", "Address exists and keeps producing blocks",
                f"{miner_addr}", "PASS" if ok else "FAIL")
     else:
-        record("miner", "miner 账户是否在 .env / genesis 中", "存在",
-               "未在测试账户列表中（仅 genesis alloc 有 1000 ETH）", "SKIP",
-               note="miner 私钥由 geth --unlock + password.txt 管理，不在 .env 的 6 个角色里")
+        record("miner", "Is the miner account present in .env / genesis", "Present",
+               "Not in the test account list (only the genesis alloc holds 1000 ETH)", "SKIP",
+               note="The miner private key is managed by geth --unlock + password.txt and is not one of the 6 roles in .env")
 
 
 # ----------------------------------------------------------------------
-# deployer：owner + 5% 平台手续费 + 提取权限
+# deployer: owner + 5% platform fee + withdrawal rights
 # ----------------------------------------------------------------------
 def check_deployer() -> None:
-    print("\n[2/7] deployer —— 合约 owner、5% 平台费、提取手续费")
+    print("\n[2/7] deployer -- contract owner, 5% platform fee, fee withdrawal")
     accounts = api.get_accounts()
     owner = api._contract().functions.owner().call()  # noqa: SLF001
     is_owner = owner.lower() == accounts["deployer"].lower()
-    record("deployer", "合约 owner() 是否 = deployer", "是（部署者即 owner）",
+    record("deployer", "Is contract owner() = deployer", "Yes (the deployer is the owner)",
            f"{owner}", "PASS" if is_owner else "FAIL")
 
-    # 5% 手续费：直接读最近一笔 TicketResold 事件核对金额
+    # 5% fee: read the most recent TicketResold event and check the amount directly
     resales = api.get_events("TicketResold", limit=5)
     if resales:
         arg = resales[-1]["args"]
         price, fee = int(arg["price"]), int(arg["platformFee"])
         expect = price * 5 // 100
         ok = fee == expect
-        record("deployer", "转售平台费 = 售价 5%", f"{expect} wei（5%）",
-               f"{fee} wei（token {arg['tokenId']}，售价 {price} wei）",
+        record("deployer", "Resale platform fee = 5% of the sale price", f"{expect} wei (5%)",
+               f"{fee} wei (token {arg['tokenId']}, sale price {price} wei)",
                "PASS" if ok else "FAIL", tx=resales[-1]["tx_hash"])
     else:
-        record("deployer", "转售平台费 = 售价 5%", "存在 TicketResold 事件", "无转售事件", "SKIP")
+        record("deployer", "Resale platform fee = 5% of the sale price", "A TicketResold event exists", "No resale event", "SKIP")
 
-    # 提取手续费
+    # Withdraw the fee
     pending = api.pending_platform_fees("deployer")
     before = eth("deployer")
     if pending > 0:
         res = api.withdraw_platform_fees("deployer")
         after = eth("deployer")
         ok = res.ok and after > before
-        record("deployer", "withdrawPlatformFees 提取手续费", "成功且余额增加",
-               f"{pending:.4f} ETH → 余额 {before:.4f} → {after:.4f}",
+        record("deployer", "withdrawPlatformFees withdraws the fee", "Succeeds and the balance increases",
+               f"{pending:.4f} ETH -> balance {before:.4f} -> {after:.4f}",
                "PASS" if ok else "FAIL", tx=res.tx_hash or "",
                note=res.error or "")
-        record("deployer", "提取后 pendingPlatformFees 归零", "0",
+        record("deployer", "pendingPlatformFees is zero after the withdrawal", "0",
                f"{api.pending_platform_fees('deployer'):.6f} ETH",
                "PASS" if api.pending_platform_fees("deployer") == 0 else "FAIL")
     else:
-        record("deployer", "withdrawPlatformFees 提取手续费", "有待提取手续费",
-               "当前为 0（此前已提取完）", "SKIP")
+        record("deployer", "withdrawPlatformFees withdraws the fee", "There are pending fees",
+               "Currently 0 (everything was already withdrawn earlier)", "SKIP")
 
-    # 负向：非 owner 不能提手续费（合约用 Ownable2Step 的自定义 error，无字符串原因）
+    # Negative case: a non-owner cannot withdraw the fee (the contract uses Ownable2Step's custom error, no string reason)
     bad = api.withdraw_platform_fees("attacker")
-    record("deployer", "attacker 提平台费被拒（onlyOwner）", "拒绝",
-           reason_of(bad.error) if not bad.ok else "意外成功",
+    record("deployer", "attacker withdrawing the platform fee is rejected (onlyOwner)", "Rejected",
+           reason_of(bad.error) if not bad.ok else "Succeeded unexpectedly",
            "PASS" if not bad.ok else "FAIL", tx=bad.tx_hash or "")
 
 
 # ----------------------------------------------------------------------
-# organizer：票款提取
+# organizer: ticket proceeds withdrawal
 # ----------------------------------------------------------------------
 def check_organizer() -> None:
-    print("\n[3/7] organizer —— 创建活动、收票款、提取票款")
+    print("\n[3/7] organizer -- event creation, ticket proceeds, proceeds withdrawal")
     pending = api.pending_proceeds("organizer")
     before = eth("organizer")
     if pending > 0:
         res = api.withdraw_proceeds("organizer")
         after = eth("organizer")
         ok = res.ok and after > before
-        record("organizer", "withdrawProceeds 提取票款", "成功且余额增加",
-               f"{pending:.4f} ETH → 余额 {before:.4f} → {after:.4f}",
+        record("organizer", "withdrawProceeds withdraws the ticket proceeds", "Succeeds and the balance increases",
+               f"{pending:.4f} ETH -> balance {before:.4f} -> {after:.4f}",
                "PASS" if ok else "FAIL", tx=res.tx_hash or "", note=res.error or "")
-        record("organizer", "提取后 pendingProceeds 归零", "0",
+        record("organizer", "pendingProceeds is zero after the withdrawal", "0",
                f"{api.pending_proceeds('organizer'):.6f} ETH",
                "PASS" if api.pending_proceeds("organizer") == 0 else "FAIL")
     else:
-        record("organizer", "withdrawProceeds 提取票款", "有待提取票款",
-               "当前为 0（此前已提取完）", "SKIP")
+        record("organizer", "withdrawProceeds withdraws the ticket proceeds", "There are pending proceeds",
+               "Currently 0 (everything was already withdrawn earlier)", "SKIP")
 
     bad = api.withdraw_proceeds("attacker")
-    record("organizer", "attacker 提票款被拒（无待提取额）", "拒绝：No proceeds available",
-           ("拒绝：" + str(bad.error)[:60]) if not bad.ok else "意外成功",
+    record("organizer", "attacker withdrawing the proceeds is rejected (nothing pending)", "Rejected: No proceeds available",
+           ("Rejected: " + str(bad.error)[:60]) if not bad.ok else "Succeeded unexpectedly",
            "PASS" if not bad.ok else "FAIL", tx=bad.tx_hash or "")
 
 
 # ----------------------------------------------------------------------
-# buyerA / buyerB：转售与 NFT 归属转移
+# buyerA / buyerB: resale and the transfer of NFT ownership
 # ----------------------------------------------------------------------
 def check_buyers() -> None:
-    print("\n[4/7][5/7] buyerA / buyerB —— 购票、挂二手、接盘后归属变化")
+    print("\n[4/7][5/7] buyerA / buyerB -- buying tickets, listing for resale, ownership change after the take-over")
     accounts = api.get_accounts()
     tokens = api.all_tokens()
     resold = [t for t in tokens if (api.get_ticket(t) or {}).get("resale_count", 0) > 0]
     if not resold:
-        record("buyerB", "转售后的 ownerOf 与 resaleCount", "至少一张票转售过", "无", "SKIP")
+        record("buyerB", "ownerOf and resaleCount after a resale", "At least one ticket has been resold", "None", "SKIP")
         return
 
     tok = resold[-1]
@@ -223,46 +227,46 @@ def check_buyers() -> None:
     hist = token_transfers(tok)
     last = hist[-1] if hist else None
     match = last is not None and last["to"].lower() == onchain_owner.lower()
-    record("buyerB", f"转售票 token {tok} 的 ownerOf 与最后一条 Transfer 一致", "一致",
-           f"ownerOf={onchain_owner[:12]}…（{role}）/ Transfer "
-           f"{last['from'][:10] if last else '—'}→{last['to'][:10] if last else '—'} @block "
+    record("buyerB", f"ownerOf of resold token {tok} matches the last Transfer", "Matches",
+           f"ownerOf={onchain_owner[:12]}... ({role}) / Transfer "
+           f"{last['from'][:10] if last else '—'}->{last['to'][:10] if last else '—'} @block "
            f"{last['block'] if last else '—'}",
            "PASS" if match else "FAIL",
            tx=last["tx_hash"] if last else "",
-           note=f"resaleCount={t['resale_count']}（上限 3）")
+           note=f"resaleCount={t['resale_count']} (max 3)")
 
-    expect_count = max(len(hist) - 1, 0)  # 铸造 1 条 + 每次转售 1 条
-    record("buyerB", f"token {tok} 的 resaleCount 与链上 Transfer 次数一致",
-           f"{expect_count}（{len(hist)} 条 Transfer - 铸造 1 条）",
+    expect_count = max(len(hist) - 1, 0)  # 1 mint + 1 per resale
+    record("buyerB", f"resaleCount of token {tok} matches the on-chain Transfer count",
+           f"{expect_count} ({len(hist)} Transfers - 1 mint)",
            f"{t['resale_count']}",
            "PASS" if t["resale_count"] == expect_count else "FAIL")
 
     listed = api.listed_tickets()
-    record("buyerA", "二手市场当前在售数量可读", "≥0 条",
-           f"{len(listed)} 条在售：" + ", ".join(f"token {x['token_id']}@{x['listing_price_eth']}ETH" for x in listed[:4]),
+    record("buyerA", "Current number of listings on the resale market is readable", ">=0 entries",
+           f"{len(listed)} listed: " + ", ".join(f"token {x['token_id']}@{x['listing_price_eth']}ETH" for x in listed[:4]),
            "PASS")
 
 
 # ----------------------------------------------------------------------
-# verifier / attacker：权限
+# verifier / attacker: permissions
 # ----------------------------------------------------------------------
 def check_verifier_attacker() -> None:
-    print("\n[6/7] verifier / attacker —— 核销权限与违规账户")
+    print("\n[6/7] verifier / attacker -- redemption rights and the violating account")
     ok_v = api.is_verifier("verifier")
-    record("verifier", "is_verifier(verifier) = true（已授权）", "true",
+    record("verifier", "is_verifier(verifier) = true (authorized)", "true",
            str(ok_v).lower(), "PASS" if ok_v else "FAIL")
     ok_a = api.is_verifier("attacker")
     record("verifier", "is_verifier(attacker) = false", "false",
            str(ok_a).lower(), "PASS" if not ok_a else "FAIL")
     ok_b = api.is_verifier("buyerA")
-    record("verifier", "is_verifier(buyerA) = false（普通买家不能核销）", "false",
+    record("verifier", "is_verifier(buyerA) = false (a normal buyer cannot redeem)", "false",
            str(ok_b).lower(), "PASS" if not ok_b else "FAIL")
-    record("attacker", "attacker 无核销权限（T17 前提）", "false",
+    record("attacker", "attacker has no redemption rights (T17 precondition)", "false",
            f"is_verifier(attacker)={str(ok_a).lower()}", "PASS" if not ok_a else "FAIL")
 
 
 # ----------------------------------------------------------------------
-# 把自动化套件的用例按 actor 归到每个账户
+# Group the automated suite cases by actor for every account
 # ----------------------------------------------------------------------
 def load_suite() -> list[dict]:
     path = RESULTS / "test_results.csv"
@@ -292,16 +296,16 @@ def build_report(rows: list[dict]) -> str:
 
     status = api.get_chain_status()
     lines = [
-        "# 逐账户核验报告（按队友给的 7 个账户表）",
+        "# Per-account verification report (following the 7-account table from our teammates)",
         "",
-        f"> 生成时间：{datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}",
-        f"> 链：chainId {status['chain_id']} · 区块 {status['block_number']} · 合约 `{status['contract_address']}`",
-        f"> 自动化用例：{len(rows)} 条 → PASS {counts['PASS']} / FAIL {counts['FAIL']} / 偏差 {counts['DEVIATION']}",
-        f"> 账户专项核验：{len(CHECKS)} 项 → PASS {ck['PASS']} / FAIL {ck['FAIL']} / 跳过 {ck['SKIP']}",
+        f"> Generated at: {datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}",
+        f"> Chain: chainId {status['chain_id']} · block {status['block_number']} · contract `{status['contract_address']}`",
+        f"> Automated cases: {len(rows)} -> PASS {counts['PASS']} / FAIL {counts['FAIL']} / deviation {counts['DEVIATION']}",
+        f"> Account-specific checks: {len(CHECKS)} -> PASS {ck['PASS']} / FAIL {ck['FAIL']} / skipped {ck['SKIP']}",
         "",
-        "## 一、总览",
+        "## 1. Overview",
         "",
-        "| 账户 | 是谁 | 在演示里干什么 | 队友给的测试 | 实测覆盖用例 | 失败 | 账户专项核验 |",
+        "| Account | Who | What it does in the demo | Tests from the teammate table | Cases actually covered | Failed | Account-specific checks |",
         "|---|---|---|---|---|---|---|",
     ]
     for role in ORDER:
@@ -310,22 +314,22 @@ def build_report(rows: list[dict]) -> str:
         fails = [c for c in cs if c["verdict"] == "FAIL"]
         mine = [c for c in CHECKS if c["role"] == role]
         bad = [c for c in mine if c["verdict"] == "FAIL"]
-        ck_txt = f"{len(mine)} 项 / 失败 {len(bad)}" if mine else "—"
+        ck_txt = f"{len(mine)} checks, failed {len(bad)}" if mine else "—"
         lines.append(
-            f"| `{role}` | {who} | {duty} | {TEAMMATE_CASES[role]} | {len(cs)} 条 | "
+            f"| `{role}` | {who} | {duty} | {TEAMMATE_CASES[role]} | {len(cs)} cases | "
             f"{'**' + str(len(fails)) + '**' if fails else '0'} | {ck_txt} |"
         )
 
-    lines += ["", "## 二、逐账户明细", ""]
+    lines += ["", "## 2. Per-account details", ""]
     for role in ORDER:
         who, duty = IDENTITY[role]
         lines.append(f"### `{role}` — {who}")
         lines.append("")
         mine = [c for c in CHECKS if c["role"] == role]
         if mine:
-            lines.append("**账户专项核验（本次真实发交易/读链）**")
+            lines.append("**Account-specific checks (real transactions / on-chain reads in this run)**")
             lines.append("")
-            lines.append("| 检查项 | 预期 | 实际 | 结果 | tx |")
+            lines.append("| Check | Expected | Actual | Result | tx |")
             lines.append("|---|---|---|---|---|")
             for c in mine:
                 tx = f"`{c['tx_hash'][:18]}…`" if c["tx_hash"] else "—"
@@ -333,9 +337,9 @@ def build_report(rows: list[dict]) -> str:
             lines.append("")
         cs = cases_of(rows, role)
         if cs:
-            lines.append(f"**自动化套件里 actor = {role} 的用例**")
+            lines.append(f"**Automated suite cases with actor = {role}**")
             lines.append("")
-            lines.append("| 用例 | 场景 | 预期 | 结果 | tx |")
+            lines.append("| Case | Scenario | Expected | Result | tx |")
             lines.append("|---|---|---|---|---|")
             for c in cs:
                 tx = f"`{c['tx_hash'][:18]}…`" if c.get("tx_hash") else "—"
@@ -343,31 +347,31 @@ def build_report(rows: list[dict]) -> str:
                              f"{c['verdict']} | {tx} |")
             lines.append("")
         if not mine and not cs:
-            lines.append("— 无直接绑定的账户动作（后台常驻角色）")
+            lines.append("— No account action is bound directly to this role (background resident role)")
             lines.append("")
 
     lines += [
-        "## 三、和队友那张表的差异（要跟队友对齐的两点）",
+        "## 3. Differences from the teammate table (two points to align with the team)",
         "",
-        "### 1）`T19 / T20 / T23 / T24` 这四个编号在本仓库里不存在",
+        "### 1) The four IDs `T19 / T20 / T23 / T24` do not exist in this repository",
         "",
-        "`tests/test_workflow.py` 的编号是 T01–T18 + E01–E09 + B01–B04，"
-        "`backend/demo_flow.py` 是 T01–T17 的另一套编号；两边都没有 T19 以后。"
-        "队友那张表的编号应该来自课程任务书，行为本身是覆盖了的，对应关系如下：",
+        "`tests/test_workflow.py` numbers its cases T01-T18 + E01-E09 + B01-B04, "
+        "while `backend/demo_flow.py` uses a different numbering, T01-T17; neither goes beyond T18. "
+        "The IDs in the teammate table presumably come from the course assignment sheet; the behaviour itself is covered, and the mapping is as follows:",
         "",
-        "| 队友的编号 | 行为 | 本仓库的实际证据 |",
+        "| Teammate ID | Behaviour | Actual evidence in this repository |",
         "|---|---|---|",
-        "| T19（deployer） | 收 5% 平台手续费 | 本报告 deployer 段：读 `TicketResold.platformFee` 校验 = 售价×5%，并真实提取 |",
-        "| T20（organizer） | 提取票款 | 本报告 organizer 段：`withdrawProceeds` 真实发交易、余额增加、待提取归零 |",
-        "| T23（buyerB） | 转售接盘后 NFT 归属变化 | 本报告 buyerB 段（`ownerOf` vs `Transfer.to`）+ 套件 T07b / T10a / T18 |",
-        "| T24（deployer） | 设置验票员 | 套件 T15a（`setVerifier`），本报告 verifier 段复核 `is_verifier` 状态 |",
+        "| T19 (deployer) | Collects the 5% platform fee | deployer section of this report: reads `TicketResold.platformFee` and checks it = sale price x 5%, then really withdraws |",
+        "| T20 (organizer) | Withdraws the ticket proceeds | organizer section of this report: `withdrawProceeds` sends a real transaction, the balance increases, pending proceeds go to zero |",
+        "| T23 (buyerB) | NFT ownership changes after the resale take-over | buyerB section of this report (`ownerOf` vs `Transfer.to`) + suite T07b / T10a / T18 |",
+        "| T24 (deployer) | Sets the verifier | suite T15a (`setVerifier`); the verifier section of this report re-checks the `is_verifier` state |",
         "",
-        "### 2）`docs/ACCOUNTS.md` 里的地址和当前链不一致（过期）",
+        "### 2) The addresses in `docs/ACCOUNTS.md` do not match the current chain (out of date)",
         "",
-        "该文件记录的是 2026-11-17 在 WSL 上那次建链的账户与合约地址；现在这台机器上"
-        "`blockchain/init_chain.py` 重新生成过账户，所以地址全变了。以 `config/network.json` 为准：",
+        "That file records the accounts and contract address of the chain that was built on WSL on 2026-11-17; "
+        "on this machine `blockchain/init_chain.py` has regenerated the accounts, so all the addresses changed. Treat `config/network.json` as the source of truth:",
         "",
-        "| 角色 | `config/network.json`（当前链，以这个为准） | `docs/ACCOUNTS.md`（旧 WSL 链，已过期） |",
+        "| Role | `config/network.json` (current chain, authoritative) | `docs/ACCOUNTS.md` (old WSL chain, out of date) |",
         "|---|---|---|",
     ]
     acc = api.get_accounts()
@@ -385,18 +389,18 @@ def build_report(rows: list[dict]) -> str:
         lines.append(f"| {role} | `{acc.get(role, '—')}` | `{stale.get(role, '—')}` |")
     lines += [
         "",
-        "> 队友如果拿 `ACCOUNTS.md` 的地址去链上核对，会全部对不上——不是链错了，是文档没跟着重新生成。"
-        "要么让 `docs/ACCOUNTS.md` 重新生成一次（`init_chain.py` 跑完就更新），要么明确告诉大家「以 `config/network.json` 为准」。",
+        "> If teammates check the addresses from `ACCOUNTS.md` against the chain, none of them will match -- the chain is not wrong, the document simply was not regenerated. "
+        "Either regenerate `docs/ACCOUNTS.md` once (it is refreshed as soon as `init_chain.py` finishes) or tell everyone explicitly to treat `config/network.json` as the source of truth.",
         "",
-        "## 四、结论",
+        "## 4. Conclusion",
         "",
     ]
     bad_all = [c for c in CHECKS if c["verdict"] == "FAIL"] + [r for r in rows if r["verdict"] == "FAIL"]
     if not bad_all:
-        lines.append("**全部通过**：7 个账户的演示职责、违规拦截、权限控制均在当前链上复现成功，"
-                     "无 FAIL 用例；2 条 DEVIATION 是任务书与实现的口径差异（已在 `results/test_evidence.json` 注明），不是缺陷。")
+        lines.append("**All passed**: the demo duties of the 7 accounts, the violation blocking and the permission control are all reproduced on the current chain, with no FAIL cases; the 2 DEVIATIONs are "
+                     "differences in wording between the assignment sheet and the implementation (noted in `results/test_evidence.json`), not defects.")
     else:
-        lines.append(f"**存在 {len(bad_all)} 项失败**，明细见上表。")
+        lines.append(f"**{len(bad_all)} items failed**; see the tables above for details.")
     lines.append("")
     return "\n".join(lines)
 
@@ -404,11 +408,11 @@ def build_report(rows: list[dict]) -> str:
 def main() -> None:
     status = api.get_chain_status()
     if not status.get("connected") or not status.get("contract_address"):
-        sys.exit("链或合约不可用：先 ./blockchain/start_node.sh 与 .venv/bin/python backend/deploy.py")
+        sys.exit("Chain or contract unavailable: start ./blockchain/start_node.sh and run .venv/bin/python backend/deploy.py first")
 
     print("=" * 78)
-    print("按队友的「7 个账户」表逐账户核验")
-    print(f"chainId={status['chain_id']} 区块={status['block_number']} 合约={status['contract_address']}")
+    print("Per-account verification against the teammate table of \"7 accounts\"")
+    print(f"chainId={status['chain_id']} block={status['block_number']} contract={status['contract_address']}")
     print("=" * 78)
 
     check_miner()
@@ -429,10 +433,10 @@ def main() -> None:
     for c in CHECKS:
         ck[c["verdict"]] = ck.get(c["verdict"], 0) + 1
     print("\n" + "=" * 78)
-    print(f"账户专项核验 {len(CHECKS)} 项：PASS {ck['PASS']} / FAIL {ck['FAIL']} / 跳过 {ck['SKIP']}")
-    print(f"套件用例 {len(rows)} 条：" + " / ".join(
+    print(f"Account-specific checks: {len(CHECKS)} items: PASS {ck['PASS']} / FAIL {ck['FAIL']} / skipped {ck['SKIP']}")
+    print(f"Suite cases: {len(rows)}: " + " / ".join(
         f"{k} {sum(1 for r in rows if r['verdict'] == k)}" for k in ("PASS", "FAIL", "DEVIATION")))
-    print(f"报告：{RESULTS / 'account_verification.md'}")
+    print(f"Report: {RESULTS / 'account_verification.md'}")
     print("=" * 78)
     if ck["FAIL"]:
         sys.exit(1)

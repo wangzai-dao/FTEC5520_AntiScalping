@@ -1,7 +1,9 @@
-"""下载合约编译依赖 OpenZeppelin Contracts 5.0.2 到 contracts/lib/。
+"""Download the OpenZeppelin Contracts 5.0.2 dependency needed for compilation.
 
-成员 2、3 在 Remix 里 import 的是 "@openzeppelin/contracts@5.0.2/..."，
-即 Remix 自带 npm 解析。本地用 solc 编译需要自己准备同一版本源码。
+The sources land in contracts/lib/. Members 2 and 3 import
+"@openzeppelin/contracts@5.0.2/..." in Remix, which resolves it through the npm support
+bundled with Remix. Compiling locally with solc requires preparing the same version of
+the sources yourself.
 """
 
 from __future__ import annotations
@@ -21,10 +23,10 @@ URL = f"https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-{VERSION}
 
 def main() -> None:
     if (LIB / "token" / "ERC721" / "ERC721.sol").exists():
-        print(f"[deps] OpenZeppelin Contracts {VERSION} 已存在: {LIB}")
+        print(f"[deps] OpenZeppelin Contracts {VERSION} already present: {LIB}")
         return
 
-    print(f"[deps] 下载 {URL}")
+    print(f"[deps] Downloading {URL}")
     with tempfile.TemporaryDirectory() as tmp:
         tgz = Path(tmp) / "oz.tgz"
         with urllib.request.urlopen(URL, timeout=120) as r, open(tgz, "wb") as f:
@@ -33,13 +35,13 @@ def main() -> None:
             tar.extractall(tmp, filter="data")
         src = Path(tmp) / "package"
         if not src.exists():
-            sys.exit("npm 包结构异常，未找到 package/ 目录")
+            sys.exit("Unexpected npm package layout: package/ directory not found")
         LIB.parent.mkdir(parents=True, exist_ok=True)
         if LIB.exists():
             shutil.rmtree(LIB)
         shutil.copytree(src, LIB)
 
-    print(f"[deps] 解压完成 -> {LIB}")
+    print(f"[deps] Extraction complete -> {LIB}")
 
 
 if __name__ == "__main__":

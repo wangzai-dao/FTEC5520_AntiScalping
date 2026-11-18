@@ -1,4 +1,4 @@
-"""购票页：一级市场买票，展示真实交易哈希与链上票主。"""
+"""Buy page: primary-market purchases, showing the real transaction hash and on-chain ticket owner."""
 
 from __future__ import annotations
 
