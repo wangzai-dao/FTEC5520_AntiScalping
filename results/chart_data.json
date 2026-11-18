@@ -1,0 +1,59 @@
+{
+  "gas_median": {
+    "createEvent": 168290,
+    "setWhitelistBatch(1)": 50061,
+    "purchaseTickets(1)": 156141,
+    "purchaseTickets(2)": 211876,
+    "listForResale": 79891,
+    "buyResale": 85027,
+    "checkIn": 51851,
+    "_failed_tx_median": 33082,
+    "_failed_tx_count": 24
+  },
+  "cases": 48,
+  "summary": {
+    "total_cases": 48,
+    "pass": 46,
+    "fail": 0,
+    "deviation": 2,
+    "pass_rate": 100.0,
+    "by_module": {
+      "M2 Primary market": {
+        "PASS": 11,
+        "FAIL": 0,
+        "DEVIATION": 1,
+        "total": 12
+      },
+      "M3 Anti-scalping": {
+        "PASS": 22,
+        "FAIL": 0,
+        "DEVIATION": 1,
+        "total": 23
+      },
+      "M4 Check-in/QR": {
+        "PASS": 8,
+        "FAIL": 0,
+        "DEVIATION": 0,
+        "total": 8
+      },
+      "M5 Bypass": {
+        "PASS": 4,
+        "FAIL": 0,
+        "DEVIATION": 0,
+        "total": 4
+      },
+      "M5 End-to-end": {
+        "PASS": 1,
+        "FAIL": 0,
+        "DEVIATION": 0,
+        "total": 1
+      }
+    },
+    "normal_cases": 19,
+    "negative_cases": 27,
+    "on_chain_failed_txs": 24,
+    "on_chain_failed_gas_total": 782049,
+    "final_block": 225,
+    "duration_seconds": 345
+  }
+}

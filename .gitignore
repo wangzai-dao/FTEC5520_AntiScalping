@@ -22,3 +22,6 @@ __pycache__/
 
 # ---- 运行产物 ----
 results/*.log
+
+# ---- 本地缓存 ----
+.mplconfig/

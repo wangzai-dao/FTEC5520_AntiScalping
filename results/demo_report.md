@@ -1,46 +1,46 @@
-# FTEC5520 防黄牛票务系统 — 链上运行证据
+# FTEC5520 Anti-Scalping Ticketing System - on-chain evidence
 
-- 生成时间：2026-11-18T10:45:59+00:00
-- 网络：私有链 chainId `1337`，RPC `http://127.0.0.1:8545`
-- 合约地址：`0x5182970de64BDb93357aDbCd984F6A4F0484bBB2`
-- 部署交易：`0x4113911dced9e247996a0c0cc998cef78bc03b699cadf400fb0d23bb943a5106`（区块 6）
+- Generated at: 2026-11-18T11:28:47+00:00
+- Network: private chain, chainId `1337`, RPC `http://127.0.0.1:8545`
+- Contract address: `0x5182970de64BDb93357aDbCd984F6A4F0484bBB2`
+- Deployment tx: `0x4113911dced9e247996a0c0cc998cef78bc03b699cadf400fb0d23bb943a5106` (block 6)
 
-## 测试明细
+## Test detail
 
-| ID | 场景 | 操作账户 | 预期 | 实际 | 结果 | Tx Hash | 区块 | Gas |
+| ID | Scenario | Actor | Expected | Actual | Result | Tx hash | Block | Gas |
 |---|---|---|---|---|---|---|---|---|
-| T01 | 创建活动（原价1 ETH / 限量100 / 限购2） | organizer | 成功 | 成功 | ✅ PASS | `0xb80a562471a84ec58c5287b5e61803a223f26336f1cc535af142722bbd1b4576` | 8 | 168344 |
-| T01b | 创建临近演出活动（0.5 ETH / 3 天后） | organizer | 成功 | 成功 | ✅ PASS | `0x8969aba82bdb53d70f009edeeaaaf4cd3dc71bc4f6718791a683239f6146d54a` | 10 | 168356 |
-| T01c | 创建预售活动（presaleActive=true） | organizer | 成功 | 成功 | ✅ PASS | `0xb0dbf7cec434bc4c6eae8093ee193eb849a4f5d39bf66396def5cc5959e021ca` | 12 | 168260 |
-| T02 | 白名单批量写入 buyerA / buyerB | organizer | 成功 | 成功 | ✅ PASS | `0x52e5433985775277da5664ac3ba1d2de2b63776cd5dceb4ed1dad371dcd5076c` | 14 | 75385 |
-| T03 | buyerA 在预售期购票 1 张 | buyerA | 成功 | 成功 | ✅ PASS | `0xf9fd3edfde69821a3f7ef046709e63ba9cbfd7d50d3a36d896b3e51b910e321d` | 16 | 191471 |
-| T04 | attacker（非白名单）在预售期购票 | attacker | 失败 | 拒绝：Wallet is not whitelisted | ✅ PASS | `—` | — | — |
-| T05a | buyerA 一级购票 1 张（活动1） | buyerA | 成功 | 成功 | ✅ PASS | `0x88720cc1a487fe8a312c5d9376b79689f9a1a5ecc78739b8f2e35940a77d609f` | 18 | 155012 |
-| T05b | buyerA 再购 1 张（达限购 2） | buyerA | 成功 | 成功 | ✅ PASS | `0xf48aafd18bdfb8a44e28ee89bcb70602ab8c5c9c952ea82ad0ffb3e1bd19eef4` | 20 | 120812 |
-| T05c | buyerB 一级购票 1 张（活动1） | buyerB | 成功 | 成功 | ✅ PASS | `0xed1a219d8e711418655f386fef0742158ab8437697fd821b3acb6ad5716e3d08` | 22 | 155012 |
-| T06 | attacker 超额购买 3 张（限购 2） | attacker | 失败 | 拒绝：Wallet limit exceeded | ✅ PASS | `—` | — | — |
-| T06b | attacker 买下唯一一张票 | attacker | 成功 | 成功 | ✅ PASS | `0xc80b8fce4d9066592cebce5fcd370a713c040722f119bcb190694be55307f01c` | 26 | 172112 |
-| T06c | buyerB 在售罄后继续购买 | buyerB | 失败 | 拒绝：Not enough tickets | ✅ PASS | `—` | — | — |
-| T11 | holder 直接调用 transferFrom 转票 | buyerA | 失败 | 拒绝：execution reverted（status=0） | ✅ PASS | `0xde9c1356f55d0f2c8b8ced0ebb2e4243bcc2e30ac0fba23565edcdfd1bf2fb37` | 28 | 22546 |
-| T08 | buyerA 以 1.5 ETH 挂牌（原价 1 ETH） | buyerA | 失败 | 拒绝：Price exceeds dynamic limit | ✅ PASS | `—` | — | — |
-| T12 | 非票主 attacker 给 token 挂牌 | attacker | 失败 | 拒绝：Not the owner | ✅ PASS | `—` | — | — |
-| T09a | buyerB 买下活动2 的票 | buyerB | 成功 | 成功 | ✅ PASS | `0xe8fca4c08eb7f5bc7c7fd23397d7e01c5efcddd525479bd2f4046c75f8537213` | 30 | 155012 |
-| T09 | 距演出 3 天，以 0.6 ETH 挂牌（上限 0.5） | buyerB | 失败 | 拒绝：Price exceeds dynamic limit | ✅ PASS | `—` | — | — |
-| T09b | 距演出 3 天，以 0.5 ETH（=100%）挂牌 | buyerB | 成功 | 成功 | ✅ PASS | `0x36562144498543aafbbc4837ef1d0fa1bb9799694fb78b681eb68cd469a37cec` | 32 | 79734 |
-| T07a | buyerA 以 1.2 ETH（=120%）挂牌 | buyerA | 成功 | 成功 | ✅ PASS | `0x3274b38cd77d8ab7ac5e891e9e29109c4d931d4f00a77bb4096d10193d6666e8` | 34 | 79891 |
-| T07 | buyerB 买入转售门票 | buyerB | 成功 | 成功 | ✅ PASS | `0x5032fb9eb3ca5f934d5359377f809903f7422a35fe48a0e300656a0f3d803a35` | 36 | 110677 |
-| T10 | 第 4 次挂牌（resaleCount 已达 3） | buyerB | 失败 | 拒绝：Max resale limit reached | ✅ PASS | `—` | — | — |
-| T17 | attacker（未授权）执行 checkIn | attacker | 失败 | 拒绝：Not an authorized verifier | ✅ PASS | `—` | — | — |
-| T13 | owner 授权 verifier | deployer | 成功 | 成功 | ✅ PASS | `0x2cf2d471890909cdb0edf2e37e8b8dbd3eaa287397543248c8494a31880fc8bb` | 46 | 47923 |
-| T15 | verifier 首次核销 token | verifier | 成功 | 成功 | ✅ PASS | `0x245969f545ef3126e74b15d445e9736780d41cb00a09d480570617e88aa5fd0a` | 48 | 51851 |
-| T16 | 同一张票再次核销 | verifier | 失败 | 拒绝：Ticket already used | ✅ PASS | `—` | — | — |
-| T07c | attacker 为活动1买 1 张作为页面展示品 | attacker | 成功 | 成功 | ✅ PASS | `0x992ece4c0b149570a9813645b5218ba8646816feb5eb08f0120a14b8b5d17520` | 50 | 137912 |
-| T07d | 该票以 1.2 ETH 挂牌（留作页面演示） | attacker | 成功 | 成功 | ✅ PASS | `0x36fb13089a3bba44928ba5f99df3170fa5771effd88269e338d1b503c4497ab9` | 52 | 79891 |
+| T01 | Create event (1 ETH / 100 tickets / limit 2) | organizer | success | success | PASS | `0xe0b7b5f6c77b9fa199ade7c37cd7751f3f669a62046dcdfda78d60417f0418d4` | 8 | 168344 |
+| T01b | Create near-event event (0.5 ETH / 3 days out) | organizer | success | success | PASS | `0x8749683091786bbb72c0025ec2b7abfab5932b3daac8fe577f57e37da7466a96` | 10 | 168368 |
+| T01c | Create presale event (presaleActive=true) | organizer | success | success | PASS | `0x7a9c287d18816aa35f09e3454d8669808235451266c811cf4bef69d670e2cd09` | 12 | 168248 |
+| T02 | Batch whitelist buyerA / buyerB | organizer | success | success | PASS | `0x3e894770b343639ae0162692d06648a0739993993a8872fa642fcc637ef9eaeb` | 14 | 75385 |
+| T03 | buyerA buys 1 ticket during presale | buyerA | success | success | PASS | `0x6f861c7e12c407e5a49103fada72f5544bde287393eae31bea3c18f9ccedd347` | 16 | 191471 |
+| T04 | attacker (not whitelisted) buys during presale | attacker | failure | rejected: Wallet is not whitelisted | PASS | `-` | - | - |
+| T05a | buyerA buys 1 ticket (event 1) | buyerA | success | success | PASS | `0xd67e2cbf0f77cfe93ccd119e48936e5a5a04ccab447589093e4271fa4a4b737b` | 18 | 155012 |
+| T05b | buyerA buys a second ticket (reaches the limit) | buyerA | success | success | PASS | `0x820bd8df534aebd6718047ac9d44ba983d126e207ffa5ba6a316b4a4066e63b3` | 20 | 120812 |
+| T05c | buyerB buys 1 ticket (event 1) | buyerB | success | success | PASS | `0x3dbbc844e36bcdd17a93e53560a231be3ee99a19601674c79052bb580e4e5ef6` | 22 | 155012 |
+| T06 | attacker tries to buy 3 tickets (limit is 2) | attacker | failure | rejected: Wallet limit exceeded | PASS | `-` | - | - |
+| T06b | attacker buys the only ticket | attacker | success | success | PASS | `0x6d60f818fa1e7975c83a9d6ea12238f6da3defabdc2c77e1d49fdeb52cdd85da` | 26 | 189212 |
+| T06c | buyerB buys after the event sold out | buyerB | failure | rejected: Not enough tickets | PASS | `-` | - | - |
+| T11 | holder calls transferFrom directly to move the ticket | buyerA | failure | rejected: execution reverted (status=0) | PASS | `0xcbcab7935a387664fef1cc269224274e89e90af87ff6cc1a8cc201d259d33632` | 28 | 22546 |
+| T08 | buyerA lists at 1.5 ETH (original price 1 ETH) | buyerA | failure | rejected: Price exceeds dynamic limit | PASS | `-` | - | - |
+| T12 | attacker lists a ticket it does not own | attacker | failure | rejected: Not the owner | PASS | `-` | - | - |
+| T09a | buyerB buys a ticket of event 2 | buyerB | success | success | PASS | `0x2056af70f32eec1923b0ac30bb4d9aba308043f4c02666f3a51e66b5c05b80ec` | 30 | 155012 |
+| T09 | 3 days out, lists at 0.6 ETH (cap 0.5) | buyerB | failure | rejected: Price exceeds dynamic limit | PASS | `-` | - | - |
+| T09b | 3 days out, lists at 0.5 ETH (= 100%) | buyerB | success | success | PASS | `0xa3aa98baa5502a0115859d485e2d951f4dfc3a3e5f6b139a0ca7ca03aebf7e59` | 32 | 79734 |
+| T07a | buyerA lists at 1.2 ETH (= 120%) | buyerA | success | success | PASS | `0x6e234957c9027b336c4bcba81cc7fee5c8f225478f6a0c32b5cf9d22847d1494` | 34 | 79891 |
+| T07 | buyerB buys the resale listing | buyerB | success | success | PASS | `0x253585f22f5ff8a523f14f8fad1d01741aa61e05f7b66f5fe2af6e0e3a8e9f12` | 36 | 110677 |
+| T10 | fourth listing (resaleCount already 3) | buyerB | failure | rejected: Max resale limit reached | PASS | `-` | - | - |
+| T17 | attacker (unauthorised) calls checkIn | attacker | failure | rejected: Not an authorized verifier | PASS | `-` | - | - |
+| T13 | owner authorises the verifier | deployer | success | success | PASS | `0x683c13d57fdfb7e1def4840f6c28ce9b4641f27c4389ffb5d92168de2cb2be98` | 46 | 47923 |
+| T15 | verifier checks the ticket in for the first time | verifier | success | success | PASS | `0x183e9fdecddd3c65d3385863147e31a1c6767f824217488ae32a9e24d749177b` | 48 | 51851 |
+| T16 | second check-in of the same ticket | verifier | failure | rejected: Ticket already used | PASS | `-` | - | - |
+| T07c | attacker buys 1 ticket of event 1 as a display item | attacker | success | success | PASS | `0x9f2962bc204aaa2e42b3332df4954c7fe8965b1ad34690c7e36619756913aa96` | 50 | 137912 |
+| T07d | that ticket is listed at 1.2 ETH (kept for the demo pages) | attacker | success | success | PASS | `0x170a93401406d314961867429dc7e6e2667b209c39c15e8de10a7892fbc907a1` | 52 | 79891 |
 
-## 汇总
+## Summary
 
-- 用例总数：27，通过 27，失败 0
-- 最终区块高度：52
-- 门票总数：7，当前在售：[6, 7]
+- Operations: 27, pass 27, fail 0
+- Final block: 52
+- Tickets minted: 8, currently listed: [6, 8]
 
-> 说明：`pass` 的判定同时考虑预期方向——预期「失败」的用例必须真的被合约拒绝才算 PASS。
+> Note: the pass flag respects the expected direction - a case expected to fail only counts as PASS when the contract really rejected it.

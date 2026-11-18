@@ -34,7 +34,7 @@ header(
     "an authorized verifier calls checkIn.",
 )
 
-verifier = account_select("Verifier account", "checkin_verifier", "verifier")
+verifier = account_select("Verifier account", "checkin_verifier", "verifier", use_url_preset=False)
 verifier_addr = api.get_accounts()[verifier]
 authorized = api.is_verifier(verifier_addr)
 badge = (

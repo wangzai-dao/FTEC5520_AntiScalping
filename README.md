@@ -1,166 +1,214 @@
-# 区块链防黄牛票务系统 · FTEC5520
+# Anti-Scalping Concert Ticketing System - FTEC5520
 
-> Anti-Scalping Concert Ticketing System
-> Geth 私有链（Clique PoA）+ Solidity ERC-721 + Python Web3.py + Streamlit
-> 本仓库包含**成员 1（私有链 / 部署 / Python 接口）**与**成员 4（Streamlit 页面 / 二维码验票）**的完整交付。
+> Geth private chain (Clique PoA) + Solidity ERC-721 + Python Web3.py + Streamlit
+> This repository contains the complete delivery of **Member 1 (private chain / deployment / Python
+> interface)** and **Member 4 (Streamlit pages / QR check-in)**, plus the test, report and slide
+> deliverables of **Member 5**.
 
 ---
 
-## 1. 一句话说明
+## 1. In one sentence
 
-门票是链上的 ERC-721；买票、限购、转售限价、转售次数、核销全部由 `ConcertTicket.sol` 强制执行。
-Streamlit 网站只是"遥控器 + 显示器"：它发交易、读链上状态，**不做任何可以绕过合约的规则判断**。
+A ticket is an on-chain ERC-721 token. Purchasing, per-wallet limits, the resale price cap, the resale
+counter and check-in are all enforced by `ConcertTicket.sol`. The Streamlit site is only a remote
+control and a display: it sends transactions and reads chain state, and it **never makes a rule
+decision that could bypass the contract**.
 
-## 2. 目录结构
+## 2. Repository layout
 
 ```text
 FTEC5520_AntiScalping/
-├── blockchain/                 # 成员 1：私有链
-│   ├── init_chain.py           #   生成 7 个测试账户 + genesis.json + .env
-│   ├── genesis.json            #   Clique 创世块（init_chain.py 生成）
-│   ├── start_node.sh           #   启动 / --reset 重建
+├── blockchain/                 # Member 1: private chain
+│   ├── init_chain.py           #   generates 7 test accounts + genesis.json + .env
+│   ├── genesis.json            #   Clique genesis (produced by init_chain.py)
+│   ├── start_node.sh           #   start / rebuild with --reset
 │   ├── stop_node.sh
-│   └── README_lab1_setup.md    #   Lab 1 环境与部署说明
-├── contracts/                  # 成员 2、3 交付（本仓库未修改源码）
+│   └── README_lab1_setup.md    #   Lab 1 environment and deployment notes
+├── contracts/                  # Members 2 and 3 (sources are not modified here)
 │   ├── ConcertTicket.sol
 │   ├── Helper.sol
-│   ├── build/ConcertTicket.json#   编译产物：ABI + bytecode
-│   └── lib/@openzeppelin/      #   OpenZeppelin 5.0.2（fetch_deps.py 下载）
-├── backend/                    # 成员 1：Python 接口
-│   ├── compile.py              #   solc 0.8.20 编译
-│   ├── deploy.py               #   部署 + 写 config/network.json
-│   ├── chain.py                #   nonce/gas/签名/回执/异常 → TxResult
-│   ├── ticket_api.py           #   页面唯一调用的接口层
-│   └── demo_flow.py            #   端到端演示 + 证据采集
-├── app/                        # 成员 4：Streamlit
-│   ├── app.py                  #   入口 = 总览页
-│   ├── common.py               #   样式、侧边栏导航、账户选择、交易结果卡片
-│   ├── qr_utils.py             #   二维码签名 / 验签
-│   └── pages/                  #   另外五个页面（1_activity … 5_checkin）
-├── config/network.json         # 合约地址 / chainId / 账户地址（deploy.py 生成）
-├── results/
-│   ├── tx_evidence.json        # 27 条真实交易证据
-│   ├── demo_report.md          # 可直接贴进报告的表格
-│   └── screenshots/            # 六个页面截图
-├── docs/
-│   ├── ACCOUNTS.md             # 7 个测试账户地址、部署记录、本机复现记录
-│   ├── ARCHITECTURE.md         # 架构图与数据流
-│   ├── DEMO_SCRIPT.md          # 演示脚本（英文界面逐条操作）
-│   ├── DEPLOYMENT_NOTES.md     # 实际运行环境、与任务书的差异、AWS 迁移方案
-│   ├── HANDOFF_1_TO_4.md       # 1→4 交接单
-│   ├── PUSH_TO_GITHUB.md       # 推送到 GitHub 的检查清单
-│   ├── REPORT_MATERIAL.md      # 报告可直接引用的数据
-│   ├── RUNBOOK.md              # 重启 / 重部署 / 换链
-│   └── CONTRACT_REVIEW_FOR_MEMBER3.md  # 交给成员 3 的合约问题清单
+│   ├── build/ConcertTicket.json#   build output: ABI + bytecode
+│   └── lib/@openzeppelin/      #   OpenZeppelin 5.0.2 (downloaded by fetch_deps.py)
+├── backend/                    # Member 1: Python interface
+│   ├── compile.py              #   solc 0.8.20 build
+│   ├── deploy.py               #   deploy + write config/network.json
+│   ├── chain.py                #   nonce/gas/signing/receipts/exceptions -> TxResult
+│   ├── ticket_api.py           #   the only interface the pages may call
+│   └── demo_flow.py            #   end-to-end demo and evidence collection
+├── app/                        # Member 4: Streamlit
+│   ├── app.py                  #   entry point = overview page
+│   ├── common.py               #   styling, sidebar navigation, account picker, tx cards
+│   ├── qr_utils.py             #   QR signing / verification
+│   └── pages/                  #   five further pages (1_activity ... 5_checkin)
+├── tests/                      # Member 5: automated suite and charts
+│   ├── test_workflow.py        #   48 cases (T01-T18 + extras + bypass tests)
+│   └── make_charts.py          #   three report figures
+├── report/                     # Member 5: Final Report + its generator
+├── presentation/               # Member 5: defence deck + its generator
+├── demo/demo_steps.md          # Member 5: live demo script
+├── results/                    # evidence: csv, json, charts, screenshots
+├── config/network.json         # contract address / chainId / account addresses (from deploy.py)
+├── docs/                       # setup, architecture, runbook, experiment guide
 ├── scripts/
-│   ├── check_chain.py          # 连通性自检
-│   └── capture_screenshots.py  # 遗留：CDP 自动截图（macOS 专用，已停用）
+│   ├── bootstrap.sh            # one-command setup
+│   └── check_chain.py          # connectivity self-check
 └── requirements.txt
 ```
 
-## 3. 快速开始
+## 3. Quick start
 
-### 方式 A：一条命令（新机器 / 拿到压缩包后）
+### Option A - one command (new machine or after unpacking an archive)
 
 ```bash
-./scripts/bootstrap.sh        # 建 venv、装依赖、下 Geth 与 OpenZeppelin、建链、部署、造演示数据
+./scripts/bootstrap.sh        # venv, dependencies, Geth, OpenZeppelin, chain, deploy, demo data
 .venv/bin/streamlit run app/app.py
 ```
 
-### 方式 B：分步执行（想看每一步做了什么）
+### Option B - step by step
 
 ```bash
-# 0) 依赖
+# 0) dependencies
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-./scripts/get_geth.sh                 # Geth 1.13.15（最后一个支持 Clique 私有链的版本）
-python backend/fetch_deps.py        # OpenZeppelin 5.0.2
+./scripts/get_geth.sh                 # Geth 1.13.15 (last release supporting Clique + mining)
+python backend/fetch_deps.py          # OpenZeppelin 5.0.2
 
-# 1) 建链
-python blockchain/init_chain.py     # 生成账户 + genesis + .env（只需一次）
-./blockchain/start_node.sh          # 启动 Geth
+# 1) chain
+python blockchain/init_chain.py       # accounts + genesis + .env (once)
+./blockchain/start_node.sh            # start Geth
 
-# 2) 编译 + 部署
+# 2) build and deploy
 python backend/compile.py
 python backend/deploy.py
 
-# 3) 造演示数据（可选，但截图/演示建议有）
+# 3) demo data (optional, recommended before screenshots)
 python backend/demo_flow.py
 
-# 4) 起网站
+# 4) site
 .venv/bin/streamlit run app/app.py
 ```
 
-打开 http://127.0.0.1:8501 。自检：`python scripts/check_chain.py`。
+Open http://127.0.0.1:8501. Self-check: `python scripts/check_chain.py`.
 
-> `tools/`、`contracts/bin/`、`contracts/lib/`、`.venv/`、`.env` 都在 `.gitignore` 里，
-> 换机器按上面 0–2 步重新生成即可。
+> `tools/`, `contracts/bin/`, `contracts/lib/`, `.venv/` and `.env` are git-ignored; regenerate them
+> with steps 0-2 on a new machine.
 >
-> **实际运行环境**：Ubuntu 22.04（本项目在 WSL2 中跑通）+ Python 3.10.12 + `streamlit==1.65.0`
-> + Geth 1.13.15。与任务书约定环境（AWS EC2、chainId 5520）的差异、原因与 AWS 迁移步骤见
-> [`docs/DEPLOYMENT_NOTES.md`](docs/DEPLOYMENT_NOTES.md)。
+> **Verified environment:** Ubuntu 22.04 (originally via WSL2) with Python 3.10.12 and
+> `streamlit==1.65.0`; also reproduced on macOS with Python 3.12. Differences from the brief's
+> assumed environment (AWS EC2, chainId 5520), the reasons and the migration steps are in
+> [`docs/DEPLOYMENT_NOTES.md`](docs/DEPLOYMENT_NOTES.md).
 >
-> **从 Windows 压缩包解到 Linux 时**：`.sh` 会丢失可执行位，先跑一次
-> `chmod +x scripts/*.sh blockchain/*.sh`，否则报 `Permission denied`。
+> **Unpacking a Windows archive on Linux:** `.sh` files lose their executable bit; run
+> `chmod +x scripts/*.sh blockchain/*.sh` first, otherwise you get `Permission denied`.
 
-## 4. 六个页面（界面为英文）
+## 4. Six pages (UI is in English)
 
-| 页面 | 做什么 | 关键链上调用 |
+| Page | What it does | Key on-chain calls |
 |---|---|---|
-| **Overview**（总览） | 链状态、合约地址、账户余额、最近门票流转 | `chainId` `blockNumber` `Transfer` 日志 |
-| **Events**（活动管理） | 主办方建活动、开关售票/预售、批量白名单、结算票款 | `createEvent` `setEventActive` `setPresaleActive` `setWhitelistBatch` `withdrawProceeds` `withdrawPlatformFees` |
-| **Buy Tickets**（购票） | 链上预检 `canPurchase` → 买票 → 回显 tx 与 `ownerOf` | `canPurchase` `purchaseTickets` `ownerOf` |
-| **My Tickets**（我的门票） | 持仓、票主、转售次数、used、生成签名二维码 | `ownerOf` `tickets` `getMaxResalePrice` |
-| **Resale Market**（二手市场） | 在售列表、挂牌（含超价被拒演示）、买入、取消 | `listForResale` `buyResale` `cancelListing` |
-| **Staff Check-in**（工作人员验票） | 验签 → 链上交叉校验 → 核销 / 重复核销失败 | `verifiers` `checkIn` |
+| **Overview** | chain status, contract address, balances, recent ticket transfers | `chainId` `blockNumber` `Transfer` logs |
+| **Events** | create events, toggle sale/presale, batch whitelist, settle proceeds | `createEvent` `setEventActive` `setPresaleActive` `setWhitelistBatch` `withdrawProceeds` `withdrawPlatformFees` |
+| **Buy Tickets** | on-chain `canPurchase` pre-check -> purchase -> echo tx and `ownerOf` | `canPurchase` `purchaseTickets` `ownerOf` |
+| **My Tickets** | holdings, owner, resale count, used flag, signed QR | `ownerOf` `tickets` `getMaxResalePrice` |
+| **Resale Market** | listings, list (including a deliberately rejected over-price), buy, cancel | `listForResale` `buyResale` `cancelListing` |
+| **Staff Check-in** | verify signature -> cross-check the chain -> check in / duplicate fails | `verifiers` `checkIn` |
 
-截图在 `results/screenshots/`（`01_overview.png` … `06_staff_checkin.png`）。
+Screenshots live in `results/screenshots/` (`01_overview.png` ... `06_staff_checkin.png`).
 
-## 5. 规则落点
+## 5. Where each rule lives
 
-| 规则 | 合约实现 | 页面表现 |
+| Rule | Contract implementation | UI behaviour |
 |---|---|---|
-| 每钱包限购 | `purchasedByWallet[eventId][wallet]` | 超限时显示 `Wallet limit exceeded` |
-| 库存上限 | `concert.sold + quantity <= maxSupply` | 剩余票数实时显示 |
-| 预售白名单 | `whitelist[eventId][account]` | 非白名单购买被拒 |
-| 动态限价 | `getMaxResalePrice`：>7 天 120%，≤7 天 100% | 挂牌页显示当前上限，超价按钮演示被拒 |
-| 转售次数 ≤ 3 | `ticket.resaleCount < 3` | 我的门票显示 `2/3` |
-| 禁止直转 | `transferFrom` / `safeTransferFrom` 被 override 成 revert | 演示脚本 T11 生成一笔 status=0 的真实交易 |
-| 一票一核销 | `ticket.used` | 第二次核销 revert `Ticket already used` |
-| 验票权限 | `verifiers[msg.sender]` | 未授权账户核销 revert |
+| Per-wallet limit | `purchasedByWallet[eventId][wallet]` | shows `Wallet limit exceeded` when exceeded |
+| Stock cap | `concert.sold + quantity <= maxSupply` | remaining tickets shown live |
+| Presale whitelist | `whitelist[eventId][account]` | non-whitelisted purchases rejected |
+| Dynamic price cap | `getMaxResalePrice`: >7 days 120%, <=7 days 100% | listing page shows the live cap; the over-price button demonstrates rejection |
+| Resale count <= 3 | `ticket.resaleCount < 3` | My Tickets shows `2/3` |
+| No direct transfer | `transferFrom` / `safeTransferFrom` overridden to revert | demo script T11 produces a real status=0 transaction |
+| One-time check-in | `ticket.used` | a second check-in reverts with `Ticket already used` |
+| Verifier permission | `verifiers[msg.sender]` | unauthorised accounts revert |
 
-## 6. 证据文件
+## 6. Evidence files
 
-- `results/tx_evidence.json` — 27 条操作的 `tx_hash / block / gas / 结果`，含部署交易；
-- `results/demo_report.md` — 同样内容的中文表格，可直接贴进 Final Report；
-- `results/screenshots/` — 六个页面截图，其中购票页带真实成功交易、验票页带完整核验 + 核销结果。
+- `results/tx_evidence.json` - 27 operations with `tx_hash / block / gas / result`, including the deployment;
+- `results/demo_report.md` - the same evidence as a readable table, ready for the Final Report;
+- `results/test_results.csv` - the 48 test cases of Member 5 with expected/actual/verdict;
+- `results/test_evidence.json` - full test evidence, environment snapshot and summary;
+- `results/charts/*.png` - the three figures used in the report and the slides;
+- `results/screenshots/` - six page screenshots (purchase page with a real successful transaction,
+  check-in page with the full verification and check-in result).
 
-重新生成：
+Regenerate:
 
 ```bash
 ./blockchain/start_node.sh --reset && sleep 5
 python backend/deploy.py && python backend/demo_flow.py
+python tests/test_workflow.py && python tests/make_charts.py
+python report/build_report.py && python presentation/build_pptx.py
 .venv/bin/streamlit run app/app.py
 ```
 
-截图目前是**手工截取**的（逐步操作见 [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)）；
-`scripts/capture_screenshots.py` 是界面汉化时期的遗留脚本，已停用。
+## 7. Security and limitations
 
-## 7. 安全与局限
+- `.env` holds six test private keys, **only for the classroom demo on a local private chain**; it is
+  git-ignored and must never be pushed;
+- the "current account" on the pages is actually signed server-side with those test keys. A real
+  product must sign with the user's own wallet;
+- the RPC listens on `127.0.0.1` only; remote demos use an SSH tunnel instead of exposing 8545;
+- on-chain rules cannot stop "one person, many wallets" or off-chain cash top-ups; the report states
+  this explicitly;
+- contract issues and suggestions are in `docs/CONTRACT_REVIEW_FOR_MEMBER3.md` (the contract source is
+  not modified in this repository).
 
-- `.env` 保存 6 个测试账户私钥，**只用于本地私有链的课堂 Demo**，已 gitignore，不进 GitHub；
-- 页面上的"当前登录账户"实际是用服务端持有的测试私钥代签。真实产品必须由用户自己的钱包签名；
-- RPC 只监听 `127.0.0.1`，远程演示走 SSH 隧道，不把 8545 暴露到公网；
-- 链上规则挡不住"一人多钱包"和"线下现金补差价"，报告里应如实说明；
-- 合约本身的问题与建议见 `docs/CONTRACT_REVIEW_FOR_MEMBER3.md`（本仓库未改合约源码）。
+## 8. Mapping to the brief
 
-## 8. 分工对照
-
-| 任务书条目 | 交付物 |
+| Brief item | Deliverable |
 |---|---|
-| 成员 1-01~04 搭链、验证 RPC、准备账户 | `blockchain/`、`.env`、`genesis.json` |
-| 成员 1-05 部署并记录地址/哈希 | `backend/deploy.py`、`config/network.json` |
-| 成员 1-06 封装 `ticket_api.py` | `backend/ticket_api.py`（6 个核心接口 + 辅助） |
-| 成员 1-07 封装签名/nonce/gas/异常/回执 | `backend/chain.py` `TxResult` |
-| 成员 1-08 与成员 4 联调 | 六个页面全部走 `ticket_api` |
-| 成员 1-09 重启/重部署说明 | `docs/RUNBOOK.md` |
-| 成员 4-01~08 五个页面 + 二维码 | `app/pages/*`、`app/qr_utils.py`、截图 |
+| Member 1-01..04 chain, RPC, accounts | `blockchain/`, `.env`, `genesis.json` |
+| Member 1-05 deploy and record address/hash | `backend/deploy.py`, `config/network.json` |
+| Member 1-06 wrap `ticket_api.py` | `backend/ticket_api.py` (six core functions plus helpers) |
+| Member 1-07 wrap signing/nonce/gas/exceptions/receipts | `backend/chain.py` `TxResult` |
+| Member 1-08 integration with Member 4 | all six pages go through `ticket_api` |
+| Member 1-09 restart/redeploy notes | `docs/RUNBOOK.md` |
+| Member 4-01..08 five pages plus QR | `app/pages/*`, `app/qr_utils.py`, screenshots |
+
+---
+
+## 9. Member 5 deliverables: testing, data aggregation, report and slides
+
+The 9 items of the brief (section 07) and where they live:
+
+| Deliverable | Description |
+|---|---|
+| `tests/test_workflow.py` | 48 cases: all of T01-T18 from the brief, 12 extra cases and the B01-B04 front-end bypass tests; repeatable (each case creates its own event) |
+| `tests/make_charts.py` | the three report figures (outcomes by module, gas comparison, coverage and cost of rejected calls) |
+| `results/test_results.csv` | full table: expected/actual/PASS-FAIL/tx_hash/block/gas/revert reason/screenshot/kind |
+| `results/test_evidence.json` | complete evidence, environment snapshot, summary and the T18 sub-steps |
+| `results/gas_data.csv`, `results/chart_data.json` | raw data behind the figures |
+| `results/charts/*.png` | Figures 1-3 |
+| `report/final_report.docx` | Final Report (all five modules, 48 test rows, 3 figures, limitations, conclusion) |
+| `presentation/final_presentation.pptx` | defence deck (15 slides) |
+| `demo/demo_steps.md` | live demo: seven actions, fallback plan, pre-demo checklist |
+| `docs/EXPERIMENT_GUIDE.md` | experiment guide: setup, clean-run protocol, judging rules, troubleshooting |
+
+**One clean reproduction (about 6 minutes)**
+
+```bash
+bash blockchain/start_node.sh --reset && sleep 3
+.venv/bin/python backend/deploy.py
+.venv/bin/python backend/demo_flow.py      # Member 1: 27 demo operations
+.venv/bin/python tests/test_workflow.py    # Member 5: 48 test cases
+.venv/bin/python tests/make_charts.py      # three figures
+```
+
+Result of this run: **48 cases, PASS 46 / FAIL 0 / 2 deviations, pass rate 100%**; 24 transactions
+were rejected by the contract and still mined (`status=0`, 782,049 gas in total).
+
+**Problems found while testing**
+
+| Problem | Handling |
+|---|---|
+| After re-running `init_chain.py`, `config/network.json` kept the old addresses, producing "insufficient funds" or "whitelist not applying" | Fixed in `backend/config.py`: addresses are derived from the private keys |
+| `getMaxResalePrice` underflows and reverts after the event starts (E07) | Documented; Member 3 should check the timestamp first, the UI already guards it |
+| `createEvent` has no access control, so any address can create an event (T02b) | Documented as a spec deviation; recommend approval or staking in production |
+
+> The page screenshots are Member 4's archive from the previous deployment; on-chain data in this
+> report is evidenced by the transaction hashes in the appendices (stated in report sections 4.4 and 5).

@@ -110,10 +110,16 @@ def chain_guard() -> dict:
     return status
 
 
-def account_select(label: str, key: str, default: str = "buyerA", roles: list[str] | None = None) -> str:
-    """账户下拉框。支持 ?account=buyerB 深链预选（便于演示/截图直接定位到某个账户）。"""
+def account_select(label: str, key: str, default: str = "buyerA", roles: list[str] | None = None,
+                   use_url_preset: bool = True) -> str:
+    """账户下拉框。支持 ?account=buyerB 深链预选（便于演示/截图直接定位到某个账户）。
+
+    `use_url_preset=False` 用于"角色本身就是身份"的下拉框（例如验票页的 Verifier
+    account）：否则 URL 上残留的 `?account=buyerA` 会把验票员静默换成买家，
+    页面显示 not authorized，看起来像权限 bug。
+    """
     roles = roles or ["organizer", "buyerA", "buyerB", "verifier", "attacker", "deployer"]
-    if key not in st.session_state:
+    if use_url_preset and key not in st.session_state:
         preset = st.query_params.get("account")
         if preset in roles:
             st.session_state[key] = preset
