@@ -1,0 +1,18 @@
+{
+  "network_name": "FTEC5520 local private chain",
+  "rpc_url": "http://127.0.0.1:8545",
+  "chain_id": 1337,
+  "contract_address": null,
+  "deploy_block": 0,
+  "deploy_tx": null,
+  "abi_path": "contracts/build/ConcertTicket.json",
+  "accounts": {
+    "deployer": null,
+    "organizer": null,
+    "buyerA": null,
+    "buyerB": null,
+    "verifier": null,
+    "attacker": null
+  },
+  "_说明": "本文件由 backend/deploy.py 生成。rpc_url/chain_id 指向 AWS 私有链时，只需修改这两项后重新部署。私钥不会写到这里，统一放在 .env。"
+}

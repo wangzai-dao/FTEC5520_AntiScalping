@@ -1,0 +1,17 @@
+# FTEC5520 Anti-Scalping Ticket System — Python 依赖
+# 安装：python -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+web3==8.0.0
+eth-account>=0.13
+streamlit==1.65.0
+qrcode[pil]>=7.4
+pillow>=10.0
+pandas>=2.0
+python-dotenv>=1.0
+requests>=2.31
+
+# 仅本地测试/无私有链时的备用后端，正式演示使用真实 Geth 节点
+eth-tester[py-evm]>=0.11
+
+# 自动截图脚本 scripts/capture_screenshots.py 用（通过 Chrome DevTools Protocol）
+websocket-client>=1.7

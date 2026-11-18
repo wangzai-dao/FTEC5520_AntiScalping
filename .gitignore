@@ -1,0 +1,24 @@
+# ---- 私钥与本地链数据：绝对不能提交 ----
+.env
+blockchain/data/
+blockchain/geth.log
+blockchain/geth.pid
+blockchain/miner.key
+blockchain/miner.addr
+blockchain/password.txt
+
+# ---- 可再生成的工具与依赖 ----
+.venv/
+tools/*
+!tools/.gitkeep
+contracts/bin/
+contracts/lib/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# ---- 运行产物 ----
+results/*.log

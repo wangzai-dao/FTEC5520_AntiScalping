@@ -1,0 +1,23 @@
+{
+  "network_name": "FTEC5520 local private chain (Geth clique, chainId 1337)",
+  "rpc_url": "http://127.0.0.1:8545",
+  "chain_id": 1337,
+  "contract_address": "0x5182970de64BDb93357aDbCd984F6A4F0484bBB2",
+  "deploy_block": 6,
+  "deploy_tx": "0x4113911dced9e247996a0c0cc998cef78bc03b699cadf400fb0d23bb943a5106",
+  "deploy_gas_used": 3294415,
+  "compiler": {
+    "version": "0.8.20",
+    "evmVersion": "paris",
+    "optimizer": true
+  },
+  "abi_path": "contracts/build/ConcertTicket.json",
+  "accounts": {
+    "deployer": "0x0b1FdF64A664Fe56b6a406A6b8523D991169D568",
+    "organizer": "0xa2BB9316aAC722a3D5901B0A341bDa092517B5c6",
+    "buyerA": "0xf15D113Fc4182919c97561331d590a0A0AaC6964",
+    "buyerB": "0xa2dE33d087Fb9D0e217685dc358bf8B33cCad6B9",
+    "verifier": "0x4c5E3D4CaBfEE177D9f30c2C56cf537452297c5d",
+    "attacker": "0x3f00206255641f15c56387628557092654A5fA5E"
+  }
+}
