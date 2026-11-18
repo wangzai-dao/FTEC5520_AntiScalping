@@ -1,0 +1,175 @@
+{
+  "generated_at": "2026-11-18T11:09:46+00:00",
+  "chain": {
+    "connected": true,
+    "rpc_url": "http://127.0.0.1:8545",
+    "chain_id": 1337,
+    "block_number": 523,
+    "contract_address": "0x5182970de64BDb93357aDbCd984F6A4F0484bBB2",
+    "deploy_block": 6,
+    "network_name": "FTEC5520 local private chain (Geth clique, chainId 1337)",
+    "balances": {
+      "deployer": "1000.62508985336269813",
+      "organizer": "1026.493823510050481457",
+      "buyerA": "983.717904274418430361",
+      "buyerB": "990.131726575274987939",
+      "verifier": "999.999583706989557891",
+      "attacker": "998.798593590237276712"
+    }
+  },
+  "checks": [
+    {
+      "role": "miner",
+      "item": "6 秒内新增区块数",
+      "expected": "≥2 个（2s/块）",
+      "actual": "3 个（区块 523 → 526，6.5s）",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "miner",
+      "item": "miner 账户是否在 .env / genesis 中",
+      "expected": "存在",
+      "actual": "未在测试账户列表中（仅 genesis alloc 有 1000 ETH）",
+      "verdict": "SKIP",
+      "tx_hash": "",
+      "note": "miner 私钥由 geth --unlock + password.txt 管理，不在 .env 的 6 个角色里"
+    },
+    {
+      "role": "deployer",
+      "item": "合约 owner() 是否 = deployer",
+      "expected": "是（部署者即 owner）",
+      "actual": "0x0b1FdF64A664Fe56b6a406A6b8523D991169D568",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "deployer",
+      "item": "转售平台费 = 售价 5%",
+      "expected": "10000000000000000 wei（5%）",
+      "actual": "10000000000000000 wei（token 45，售价 200000000000000000 wei）",
+      "verdict": "PASS",
+      "tx_hash": "0x00e48b1e813c8968b16d03498095ab71ae6fe78cc3b6eefb4109bacfcf903fcd",
+      "note": ""
+    },
+    {
+      "role": "deployer",
+      "item": "withdrawPlatformFees 提取手续费",
+      "expected": "成功且余额增加",
+      "actual": "0.0100 ETH → 余额 1000.6251 → 1000.6351",
+      "verdict": "PASS",
+      "tx_hash": "0x3337c2f8a70f8172eb5f3fe0186ce4415ca546cb74ca9c5e7fdb8892c2be6058",
+      "note": ""
+    },
+    {
+      "role": "deployer",
+      "item": "提取后 pendingPlatformFees 归零",
+      "expected": "0",
+      "actual": "0.000000 ETH",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "deployer",
+      "item": "attacker 提平台费被拒（onlyOwner）",
+      "expected": "拒绝",
+      "actual": "拒绝：OwnableUnauthorizedAccount（调用者不是 owner）",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "organizer",
+      "item": "withdrawProceeds 提取票款",
+      "expected": "成功且余额增加",
+      "actual": "0.2000 ETH → 余额 1026.4938 → 1026.6938",
+      "verdict": "PASS",
+      "tx_hash": "0x276772e5bcacace779fd81b2f89bb800fa33f9424156f33bcafb6d2f5be18577",
+      "note": ""
+    },
+    {
+      "role": "organizer",
+      "item": "提取后 pendingProceeds 归零",
+      "expected": "0",
+      "actual": "0.000000 ETH",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "organizer",
+      "item": "attacker 提票款被拒（无待提取额）",
+      "expected": "拒绝：No proceeds available",
+      "actual": "拒绝：No proceeds available",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "buyerB",
+      "item": "转售票 token 45 的 ownerOf 与最后一条 Transfer 一致",
+      "expected": "一致",
+      "actual": "ownerOf=0xa2dE33d087…（buyerB）/ Transfer 0xf15D113F→0xa2dE33d0 @block 522",
+      "verdict": "PASS",
+      "tx_hash": "0x00e48b1e813c8968b16d03498095ab71ae6fe78cc3b6eefb4109bacfcf903fcd",
+      "note": "resaleCount=1（上限 3）"
+    },
+    {
+      "role": "buyerB",
+      "item": "token 45 的 resaleCount 与链上 Transfer 次数一致",
+      "expected": "1（2 条 Transfer - 铸造 1 条）",
+      "actual": "1",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "buyerA",
+      "item": "二手市场当前在售数量可读",
+      "expected": "≥0 条",
+      "actual": "2 条在售：token 6@0.5ETH, token 7@1.2ETH",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "verifier",
+      "item": "is_verifier(verifier) = true（已授权）",
+      "expected": "true",
+      "actual": "true",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "verifier",
+      "item": "is_verifier(attacker) = false",
+      "expected": "false",
+      "actual": "false",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "verifier",
+      "item": "is_verifier(buyerA) = false（普通买家不能核销）",
+      "expected": "false",
+      "actual": "false",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    },
+    {
+      "role": "attacker",
+      "item": "attacker 无核销权限（T17 前提）",
+      "expected": "false",
+      "actual": "is_verifier(attacker)=false",
+      "verdict": "PASS",
+      "tx_hash": "",
+      "note": ""
+    }
+  ]
+}

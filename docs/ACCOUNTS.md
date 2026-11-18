@@ -2,9 +2,13 @@
 
 > 本文件只记录**公开地址**。私钥在项目根目录 `.env`（已被 `.gitignore` 排除），切勿提交或外发。
 
+> ⚠️ **2026-11-18：本机（macOS）重新建过链，账户地址与合约地址都变了。**
+> 下面「生成时间 / 7 个账户 / 部署记录」这些**带 2026-11-17 时间戳的内容属于旧 WSL 链，保留作历史**；
+> **当前正在跑的链以 `config/network.json` 和 `results/account_verification.md` 为准**（见下方「当前链」一节）。
+
 | 项目 | 值 |
 |---|---|
-| 生成时间 | 2026-11-17 |
+| 生成时间 | 2026-11-17（旧 WSL 链） |
 | 生成命令 | `.venv/bin/python blockchain/init_chain.py` |
 | 运行环境 | WSL2 Ubuntu 22.04.5 LTS · Python 3.10.12 · Geth 1.13.15-stable · solc 0.8.20 |
 | chainId | 1337（Clique PoA，出块间隔 2 秒） |
@@ -12,7 +16,29 @@
 
 ---
 
-## 7 个账户
+## 当前链（2026-11-18 · macOS · 核对地址请看这里）
+
+| 角色 | 地址 | 身份 |
+|---|---|---|
+| deployer | `0x0b1FdF64A664Fe56b6a406A6b8523D991169D568` | 平台方（合约 owner） |
+| organizer | `0xa2BB9316aAC722a3D5901B0A341bDa092517B5c6` | 主办方 |
+| buyerA | `0xf15D113Fc4182919c97561331d590a0A0AaC6964` | 买家 A |
+| buyerB | `0xa2dE33d087Fb9D0e217685dc358bf8B33cCad6B9` | 买家 B |
+| verifier | `0x4c5E3D4CaBfEE177D9f30c2C56cf537452297c5d` | 验票员 |
+| attacker | `0x3f00206255641f15c56387628557092654A5fA5E` | 黄牛 |
+| miner | `0x188d4F8d6cBd9147bc4a25db7080cd7d5CDa87A3` | 出块节点（keystore 由 `blockchain/password.txt` 解锁） |
+
+| 项目 | 值 |
+|---|---|
+| 合约地址 | `0x5182970de64BDb93357aDbCd984F6A4F0484bBB2` |
+| 部署交易 | `0x4113911dced9e247996a0c0cc998cef78bc03b699cadf400fb0d23bb943a5106`（区块 6） |
+| 数据来源 | `config/network.json`（由 `backend/deploy.py` 自动写入） |
+
+> 每次 `init_chain.py --force` 重建链后，**这张表必须跟着更新**，否则队友按旧地址核对会全部对不上。
+
+---
+
+## 7 个账户（旧 WSL 链，2026-11-17）
 
 | 角色 | 地址 | 身份 | 主要职责 | 相关测试 |
 |---|---|---|---|---|
@@ -34,7 +60,7 @@
 
 ---
 
-## 部署记录（已核对）
+## 部署记录（旧 WSL 链 2026-11-17 的快照，当前链见文档开头）
 
 | 项目 | 值 |
 |---|---|
