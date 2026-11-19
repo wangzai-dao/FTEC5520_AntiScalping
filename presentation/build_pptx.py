@@ -387,6 +387,40 @@ def build() -> Path:
 
     slide = blank(prs)
     next_page()
+    title_bar(slide, "Part 1: how the chain is constructed", None, 1, page)
+    cards = [
+        ("1 - genesis.json", ["chainId 1337",
+                              "clique: period 2 s, epoch 30 000",
+                              "gasLimit 30 000 000, difficulty 1"]),
+        ("2 - alloc at block 0", ["7 accounts x 1 000 ETH",
+                                  "deployer, organizer, buyerA,",
+                                  "buyerB, verifier, attacker, signer"]),
+        ("3 - extradata", ["32 zero bytes + signer + 65 zeros",
+                           "only that address may seal a block",
+                           "so one block every 2 s, no forks"]),
+        ("4 - run and deploy", ["geth --datadir blockchain/data",
+                                "solc 0.8.20 -> 15 008 B bytecode",
+                                "0x5182...bBB2 at block 6"]),
+    ]
+    for i, (head, lines) in enumerate(cards):
+        x = MARGIN + (i % 2) * 15.6
+        y = 3.0 + (i // 2) * 6.2
+        rect(slide, x, y, 15.1, 5.7, LIGHT)
+        rect(slide, x, y, 0.18, 5.7, BLUE, shape=MSO_SHAPE.RECTANGLE)
+        text(slide, x + 0.55, y + 0.3, 14.0, 0.9, head, size=16, bold=True, color=BLUE)
+        text(slide, x + 0.55, y + 1.45, 14.0, 4.0, lines, size=13.5, color=DARK,
+             line_spacing=1.5)
+    band(slide, 16.1, 1.7, BLUE,
+         "Three files reproduce the chain from nothing: genesis.json, start_node.sh, deploy.py.",
+         size=14)
+    notes(slide,
+          "Part 1, two minutes. This is the construction: genesis.json fixes the chainId, the Clique "
+          "period and the gas limit; alloc funds the seven accounts at block zero; extradata names the "
+          "single signer, which is why a block appears every two seconds with no fork. Then the node "
+          "starts and the contract is deployed at block 6.")
+
+    slide = blank(prs)
+    next_page()
     title_bar(slide, "Part 1: one interface, one return shape",
               "No page builds a raw transaction", 1, page)
     text(slide, MARGIN, 3.0, 15.4, 0.8, "Six functions every part calls", size=14, bold=True,
@@ -423,6 +457,66 @@ def build() -> Path:
     # ================================================================ PART 2
     section_slide(prs, 2)
     next_page()
+
+    slide = blank(prs)
+    next_page()
+    title_bar(slide, "Part 2: how the contract is laid out", None, 2, page)
+    heads = ["State: 2 structs, 8 mappings", "Events: 9, all indexed", "Guards and inheritance"]
+    cols = [
+        ["struct ConcertEvent {",
+         "  name, price, maxSupply, sold,",
+         "  eventTime, walletLimit,",
+         "  organizer, active, presaleActive }",
+         "struct TicketInfo {",
+         "  isListed, listingPrice,",
+         "  resaleCount, used }",
+         "",
+         "concertEvents[id], tickets[id],",
+         "tokenToEvent[id], whitelist[id][who],",
+         "purchasedByWallet[id][who],",
+         "pendingProceeds, pendingPlatformFees,",
+         "verifiers"],
+        ["ConcertEventCreated",
+         "EventStatusChanged",
+         "PresaleStatusChanged",
+         "WhitelistUpdated",
+         "TicketPurchased",
+         "ProceedsWithdrawn",
+         "TicketResold",
+         "TicketCheckedIn",
+         "VerifierStatusChanged",
+         "",
+         "one event per state change,",
+         "so Part 4 reads no storage it",
+         "cannot justify from a log"],
+        ["ERC721 + Ownable + ReentrancyGuard",
+         "",
+         "onlyEventManager(eventId)",
+         "  create, set, whitelist,",
+         "  withdraw - per event",
+         "",
+         "onlyOwner",
+         "  verifiers, platform fees",
+         "",
+         "nonReentrant",
+         "  buy, resale, withdraw",
+         "",
+         "transferFrom / safeTransferFrom",
+         "  overridden to revert"],
+    ]
+    for i, (head, lines) in enumerate(zip(heads, cols)):
+        x = MARGIN + i * 10.4
+        text(slide, x, 2.9, 9.9, 0.8, head, size=14, bold=True, color=TEAL)
+        rect(slide, x, 3.8, 9.9, 12.2, LIGHT)
+        text(slide, x + 0.35, 3.95, 9.2, 11.9, lines, size=13.5, color=DARK, line_spacing=1.4)
+    band(slide, 16.4, 1.6, TEAL,
+         "Part 3 and Part 4 never touch hidden state: every rule lives in these two structs.",
+         size=14)
+    notes(slide,
+          "Part 2, two minutes. Construction first: two structs hold everything - the event and the "
+          "per-ticket record - and eight mappings index them. Nine events make every state change "
+          "observable, which is what Part 4 renders. Three guards - onlyEventManager, onlyOwner and "
+          "nonReentrant - plus the blocked ERC-721 transfer functions are the whole access model.")
 
     slide = blank(prs)
     next_page()
