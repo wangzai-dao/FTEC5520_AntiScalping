@@ -20,6 +20,11 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
+# ---- Office lock files (LibreOffice/PowerPoint leave these behind) ----
+*/.~*.pptx
+*/.~*.docx
+.~*.pptx
+
 # ---- Runtime artefacts ----
 results/*.log
 
