@@ -113,8 +113,15 @@ def rect(slide, x, y, w, h, fill, line=None, shape=MSO_SHAPE.ROUNDED_RECTANGLE, 
     return shp
 
 
+# The deck ships without speaker notes. The script text is still in this file, at
+# the end of every slide block, so a presenter can find it (or re-enable it by
+# setting WITH_NOTES back to True).
+WITH_NOTES = False
+
+
 def notes(slide, script: str) -> None:
-    slide.notes_slide.notes_text_frame.text = script
+    if WITH_NOTES:
+        slide.notes_slide.notes_text_frame.text = script
 
 
 def title_bar(slide, title, kicker=None, part_idx=None, page=None):
