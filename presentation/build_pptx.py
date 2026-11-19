@@ -221,8 +221,28 @@ def section_slide(prs, idx: int) -> None:
     text(slide, 1.5, 3.0, 10.5, 1.2, "Presentation outline", size=13, bold=True,
          color=RGBColor(0xCF, 0xD8, 0xDC))
     text(slide, 1.3, 4.1, 11.2, 3.6, f"Part {num}", size=54, bold=True, color=WHITE)
-    text(slide, 1.5, 9.3, 10.4, 3.6, title, size=15, color=RGBColor(0xE3, 0xEA, 0xEE),
+    text(slide, 1.5, 9.0, 10.4, 3.4, title, size=15, color=RGBColor(0xE3, 0xEA, 0xEE),
          line_spacing=1.35)
+
+    # three-layer stack: shows where this part sits, and that rules live in the contract
+    text(slide, 1.5, 12.5, 10.4, 0.55,
+         "Where this part sits" if num != "5" else "Where this part sits - all three layers",
+         size=9, bold=True, color=RGBColor(0xCF, 0xD8, 0xDC))
+    owned = {"1": {"Interface"}, "2": {"Contract"}, "3": {"Contract"},
+             "4": {"Presentation"}, "5": {"Presentation", "Interface", "Contract"}}[num]
+    for i, layer in enumerate(["Presentation", "Interface", "Contract"]):
+        y = 13.15 + i * 1.18
+        active = layer in owned
+        chip = rect(slide, 1.5, y, 10.4, 1.0, WHITE if active else color,
+                    shape=MSO_SHAPE.ROUNDED_RECTANGLE, adj=0.18)
+        if not active:
+            chip.fill.background()
+            chip.line.color.rgb = RGBColor(0xCF, 0xD8, 0xDC)
+            chip.line.width = Pt(0.75)
+        text(slide, 1.85, y, 9.8, 1.0,
+             layer + ("  -  this part" if active and num != "5" else ""),
+             size=9.5, bold=active, color=color if active else RGBColor(0xCF, 0xD8, 0xDC),
+             anchor=MSO_ANCHOR.MIDDLE)
     text(slide, 15.0, 3.9, 17.6, 0.9, "What this part delivers", size=12, bold=True, color=color)
     text(slide, 15.0, 4.9, 17.4, 3.2, delivers, size=19, color=DARK, line_spacing=1.35)
     text(slide, 15.0, 8.9, 17.4, 0.9, "The five parts, in order", size=12, bold=True, color=GREY)
@@ -444,7 +464,7 @@ def build() -> Path:
     body = [["createEvent", "anyone may create; the caller becomes that event's organizer", "T01"],
             ["setWhitelist / Batch", "organizer only; presale list per event", "T03 / T04"],
             ["purchaseTickets", "stock, wallet limit, whitelist, exact payment, then mint", "T05 / T06"],
-            ["canPurchase", "read-only pre-check returning (bool, reason)", "Part 4 UI"],
+            ["canPurchase", "read-only pre-check returning (bool, reason)", "used by Part 4"],
             ["withdrawProceeds", "pull payment: the organizer withdraws, the sale never blocks", "T01"]]
     table(slide, MARGIN, 3.25, 18.4, ["Function", "Rule encoded in the contract", "Test"], body,
           [4.4, 11.6, 2.4], font_size=10, row_h=1.5, center_cols=(2,))
@@ -456,10 +476,10 @@ def build() -> Path:
           ["T06b", "purchase after sell-out rejected", gas("T06b")]]
     table(slide, 20.8, 3.95, 11.2, ["Case", "What it proves", "Gas"], ev,
           [1.5, 6.6, 2.2], font_size=9.5, row_h=1.35, center_cols=(0, 2))
-    text(slide, MARGIN, 12.55, 30.6, 3.2,
+    text(slide, MARGIN, 12.55, 30.6, 3.4,
          ["T02b is a deliberate deviation: createEvent has no access control, so anyone can create an event",
-          "and become its organizer. It does not touch purchasing or resale, but fake events can exist on",
-          "chain - Part 5 reports it as a finding instead of hiding it."],
+          "and become its organizer - Part 5 reports it as a finding instead of hiding it. canPurchase is the",
+          "read-only pre-check the page layer calls; its conditions are asserted on chain by T04, T05b and T06b."],
          size=10, color=GREY, line_spacing=1.4)
     handoff(slide, "Part 3", "Ticket state (ownerOf, tokenToEvent) and the purchase path that the resale "
                                "rules must reuse - one ticket struct, not two", TEAL)
@@ -599,25 +619,33 @@ def build() -> Path:
     next_page()
     title_bar(slide, "Part 4: six pages that only display the chain",
               "Every screen reads ownerOf or tickets() - none of them caches a business decision", 4, page)
-    shots = [("01_overview.png", "Overview: chain state, contract, balances"),
-             ("02_events.png", "Events: create, toggle sale, whitelist, settle"),
-             ("03_buy_tickets.png", "Buy: canPurchase pre-check, then purchase"),
-             ("05_resale_market.png", "Resale: live cap, list, buy, cancel")]
-    for i, (fname, label) in enumerate(shots):
-        col, row = i % 2, i // 2
-        x = 2.4 + col * 15.2
-        y = 2.95 + row * 7.55
-        text(slide, x, y, 13.8, 0.55, label, size=9.5, bold=True, color=BLUE)
-        picture(slide, SHOTS / fname, x, y + 0.58, w=13.8)
-    text(slide, MARGIN, 17.55, 30.6, 1.2,
-         "Next slide: the QR credential and the check-in page - the only two screens that decide entry",
-         size=10, color=GREY)
+    text(slide, MARGIN, 2.85, 17.6, 0.45,
+         "Buy Tickets: pre-check, transaction and the ownerOf read-back on one screen",
+         size=9.5, bold=True, color=BLUE)
+    picture(slide, SHOTS / "03_buy_tickets.png", MARGIN, 3.5, w=17.6)
+    text(slide, 20.0, 3.0, 12.4, 0.6, "What to look at on each page", size=11.5, bold=True, color=BLUE)
+    text(slide, 20.0, 3.75, 12.4, 8.6,
+         ["Overview - chainId, block number, contract address,",
+          "balances and the most recent ticket transfers.",
+          "",
+          "Events - create an event, toggle the sale switch,",
+          "batch whitelist, settle the proceeds.",
+          "",
+          "Resale - the live cap from getMaxResalePrice, list,",
+          "buy, cancel; the over-price button fails on purpose."],
+         size=9.5, color=DARK, line_spacing=1.45)
+    for i, (fname, label) in enumerate([("01_overview.png", "Overview"),
+                                        ("02_events.png", "Events"),
+                                        ("05_resale_market.png", "Resale market")]):
+        x = MARGIN + i * 10.4
+        picture(slide, SHOTS / fname, x, 12.75, w=9.6)
+        text(slide, x, 17.5, 9.6, 0.5, label, size=9, bold=True, color=GREY)
     notes(slide,
-          "Part 4, about two minutes. Do not narrate every widget. For each screenshot name the chain call "
-          "behind it: the overview reads chainId and Transfer logs, the buy page runs canPurchase before "
-          "spending gas, My Tickets rebuilds holdings from Transfer events plus ownerOf, the resale page "
-          "shows the cap that getMaxResalePrice just returned. Landing sentence: the page is a remote "
-          "control and a display, nothing else.")
+          "Part 4, about two minutes. Start with the hero screenshot: the buy page is the one screen where the "
+          "pre-check and the transaction appear together, so it is the best single example of the "
+          "'page only reports the chain' claim. Then the three small ones, one sentence each: the overview "
+          "reads chainId and Transfer logs, the events page writes the rules, the resale page shows the cap "
+          "that getMaxResalePrice returned. Do not read the UI text aloud.")
 
     slide = blank(prs)
     next_page()
@@ -691,34 +719,60 @@ def build() -> Path:
 
     slide = blank(prs)
     next_page()
-    title_bar(slide, "Part 5: what each rule costs, and what a refusal costs",
-              "Medians from real receipts, not estimates; the right panel is the same call, twice", 5, page)
-    picture(slide, CHARTS / "02_gas_comparison.png", MARGIN, 3.3, w=13.0)
-    text(slide, MARGIN, 10.7, 13.0, 5.6,
-         ["Create event 168k, buy one ticket 156k, buy two 212k",
-          "(the second ticket adds only ~55k - batching is cheaper,",
-          "which is itself a reason scalpers batch), check-in 52k.",
+    title_bar(slide, "Part 5: what each rule costs",
+              "Medians of real receipts - not estimates, and not gas limits", 5, page)
+    picture(slide, CHARTS / "02_gas_comparison.png", MARGIN, 3.2, w=20.6)
+    text(slide, 22.9, 3.3, 9.3, 12.2,
+         ["Three things to take away",
           "",
-          "The expensive operations are issuance and purchase,",
-          "not the enforcement - a useful engineering observation,",
-          "not just a table."],
-         size=10, color=DARK, line_spacing=1.45)
-    picture(slide, CHARTS / "03_coverage_and_failed_tx.png", 16.2, 3.3, w=16.0)
-    text(slide, 16.2, 10.7, 16.0, 5.6,
-         ["Left: 19 normal-path and 27 negative-path cases -",
-          "for this system the value is in the refusals.",
+          "1.  Issuance and purchase dominate: 168k to",
+          "     create an event, 156k to buy one ticket.",
           "",
-          "Right: a rejected purchase still burns ~41k gas, a",
-          "rejected listing ~34k, a rejected check-in ~24k.",
+          "2.  Enforcement is cheap: listing 80k, check-in",
+          "     52k - the rules are not where the money goes.",
           "",
-          "Hence the canPurchase pre-check from Part 2: keep",
-          "doomed transactions out of the mempool."],
-         size=10, color=DARK, line_spacing=1.45)
+          "3.  The second ticket adds only ~56k, so batching",
+          "     is cheaper per ticket - which is exactly why",
+          "     scalpers batch."],
+         size=10.5, color=DARK, line_spacing=1.4)
+    rect(slide, MARGIN, 15.1, 30.6, 1.5, LIGHT)
+    rect(slide, MARGIN, 15.1, 0.14, 1.5, GREEN, shape=MSO_SHAPE.RECTANGLE)
+    text(slide, MARGIN + 0.5, 15.1, 29.6, 1.5,
+         "The rules are cheap to enforce - what costs is issuing and selling the ticket in the first place.",
+         size=11.5, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE)
     notes(slide,
-          "Part 5, about two minutes. Two sentences per chart. Left: the cost profile - issuance and "
-          "purchase dominate, enforcement is cheap, and the marginal cost of a second ticket explains "
-          "batching. Right: the same operation succeeds or is rejected, and rejection still costs gas; that "
-          "number is both evidence (the EVM refused, not our script) and an engineering warning.")
+          "Part 5, about one minute. One number per point: 168k, 156k, 52k, and the 56k marginal cost of the "
+          "second ticket. The point the audience should remember: the expensive operations are issuance and "
+          "purchase; enforcing the rules is comparatively cheap, so the rules are not what makes this "
+          "system costly.")
+
+    slide = blank(prs)
+    next_page()
+    title_bar(slide, "Part 5: what a refused call costs",
+              "The same operations, measured twice: once accepted, once rejected", 5, page)
+    picture(slide, CHARTS / "03_coverage_and_failed_tx.png", MARGIN, 3.2, w=21.6)
+    text(slide, 23.1, 3.3, 9.1, 12.2,
+         ["Left panel: 19 normal-path and 27 negative-path",
+          "cases. For this system the value is in the",
+          "refusals, so negative cases outnumber them.",
+          "",
+          "Right panel: a rejected purchase still burns ~41k",
+          "gas, a rejected listing ~34k, a rejected check-in",
+          "~24k.",
+          "",
+          "In total 24 refused calls cost 782,049 gas - which",
+          "is why Part 2 pre-checks with canPurchase."],
+         size=10.5, color=DARK, line_spacing=1.4)
+    rect(slide, MARGIN, 15.1, 30.6, 1.5, LIGHT)
+    rect(slide, MARGIN, 15.1, 0.14, 1.5, RED, shape=MSO_SHAPE.RECTANGLE)
+    text(slide, MARGIN + 0.5, 15.1, 29.6, 1.5,
+         "A refusal is not something we made up: the transaction is mined, status=0, and gas is still charged.",
+         size=11.5, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE)
+    notes(slide,
+          "Part 5, about one and a half minutes. The left panel explains why negative cases outnumber "
+          "positive ones. The right panel is the important one: a refused call is still mined and still "
+          "charges gas, so the refusal came from the EVM rather than from our script - and that is also the "
+          "reason the interface pre-checks before sending.")
 
     slide = blank(prs)
     next_page()
