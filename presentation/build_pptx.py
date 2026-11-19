@@ -48,6 +48,12 @@ RED = RGBColor(0xC6, 0x28, 0x28)
 W, H = Cm(33.87), Cm(19.05)   # 16:9
 MARGIN = 1.6
 
+# Body text was set for a 16:9 slide read on a laptop; on a projector it is too small.
+# Everything drawn through text()/table() is scaled here, with a ceiling so the big
+# "Part N" headline on the dividers does not run away.
+SCALE = 1.22
+MAX_PT = 46
+
 PARTS = [
     ("1", "Private chain, deployment and the Web3.py interface", "Chain and interface", BLUE,
      "A running chain, a deployed contract and six Python functions"),
@@ -84,6 +90,7 @@ def text(slide, x, y, w, h, content, size=16, bold=False, color=DARK, align=PP_A
     frame = box.text_frame
     frame.word_wrap = True
     frame.vertical_anchor = anchor
+    size = min(size * SCALE, MAX_PT)
     lines = content if isinstance(content, list) else [content]
     for i, line in enumerate(lines):
         par = frame.paragraphs[0] if i == 0 else frame.add_paragraph()
@@ -121,16 +128,16 @@ def notes(slide, script: str) -> None:
 def part_badge(slide, part_idx: int) -> None:
     """'Part 2 / 5 - Part 2' in the top right corner of a content slide."""
     num, _title, short, color, _delivers = PARTS[part_idx - 1]
-    text(slide, 24.2, 0.55, 8.4, 0.8, f"Part {num} of 5  -  {short}", size=10.5, bold=True,
+    text(slide, 22.6, 0.55, 10.0, 0.8, f"Part {num} of 5  -  {short}", size=9.5, bold=True,
          color=color, align=PP_ALIGN.RIGHT)
 
 
 def title_bar(slide, title, kicker=None, part_idx=None, page=None):
     rect(slide, 0, 0, 33.87, 0.22, NAVY, shape=MSO_SHAPE.RECTANGLE)
-    size = 26 if len(title) <= 44 else (22 if len(title) <= 56 else 19)
-    text(slide, MARGIN, 0.8, 26.2, 1.25, title, size=size, bold=True, color=NAVY)
+    size = 24 if len(title) <= 44 else (20 if len(title) <= 56 else 18)
+    text(slide, MARGIN, 0.75, 26.6, 1.45, title, size=size, bold=True, color=NAVY)
     if kicker:
-        text(slide, MARGIN, 2.05, 29.4, 0.85, kicker, size=12.5, color=GREY)
+        text(slide, MARGIN, 2.25, 29.4, 0.8, kicker, size=11, color=GREY)
     if part_idx:
         part_badge(slide, part_idx)
     if page:
@@ -139,6 +146,9 @@ def title_bar(slide, title, kicker=None, part_idx=None, page=None):
 
 def table(slide, x, y, w, headers, rows, col_ratios, font_size=10.5, header_size=10.5,
           row_h=1.0, header_fill=NAVY, highlight_rows=(), center_cols=()):
+    font_size = font_size * SCALE
+    header_size = header_size * SCALE
+    row_h = row_h * 1.12
     shape = slide.shapes.add_table(len(rows) + 1, len(headers), Cm(x), Cm(y), Cm(w),
                                    Cm(row_h * (len(rows) + 1)))
     tbl = shape.table
@@ -199,7 +209,7 @@ def kpi(slide, x, y, w, value, label, color=BLUE, value_size=28):
     rect(slide, x, y, w, 3.3, LIGHT)
     rect(slide, x, y, 0.13, 3.3, color, shape=MSO_SHAPE.RECTANGLE)
     text(slide, x + 0.45, y + 0.45, w - 0.8, 1.5, value, size=value_size, bold=True, color=color)
-    text(slide, x + 0.45, y + 2.05, w - 0.75, 1.15, label, size=10, color=GREY, line_spacing=1.12)
+    text(slide, x + 0.45, y + 2.0, w - 0.7, 1.35, label, size=8.5, color=GREY, line_spacing=1.12)
 
 
 def handoff(slide, who: str, what: str, color: RGBColor) -> None:
@@ -221,8 +231,8 @@ def section_slide(prs, idx: int) -> None:
     text(slide, 1.5, 3.0, 10.5, 1.2, "Presentation outline", size=13, bold=True,
          color=RGBColor(0xCF, 0xD8, 0xDC))
     text(slide, 1.3, 4.1, 11.2, 3.6, f"Part {num}", size=54, bold=True, color=WHITE)
-    text(slide, 1.5, 9.0, 10.4, 3.4, title, size=15, color=RGBColor(0xE3, 0xEA, 0xEE),
-         line_spacing=1.35)
+    text(slide, 1.5, 9.0, 10.4, 3.2, title, size=11.5, color=RGBColor(0xE3, 0xEA, 0xEE),
+         line_spacing=1.3)
 
     # three-layer stack: shows where this part sits, and that rules live in the contract
     text(slide, 1.5, 12.5, 10.4, 0.55,
@@ -231,7 +241,7 @@ def section_slide(prs, idx: int) -> None:
     owned = {"1": {"Interface"}, "2": {"Contract"}, "3": {"Contract"},
              "4": {"Presentation"}, "5": {"Presentation", "Interface", "Contract"}}[num]
     for i, layer in enumerate(["Presentation", "Interface", "Contract"]):
-        y = 13.15 + i * 1.18
+        y = 13.05 + i * 1.2
         active = layer in owned
         chip = rect(slide, 1.5, y, 10.4, 1.0, WHITE if active else color,
                     shape=MSO_SHAPE.ROUNDED_RECTANGLE, adj=0.18)
@@ -241,19 +251,19 @@ def section_slide(prs, idx: int) -> None:
             chip.line.width = Pt(0.75)
         text(slide, 1.85, y, 9.8, 1.0,
              layer + ("  -  this part" if active and num != "5" else ""),
-             size=9.5, bold=active, color=color if active else RGBColor(0xCF, 0xD8, 0xDC),
+             size=8.5, bold=active, color=color if active else RGBColor(0xCF, 0xD8, 0xDC),
              anchor=MSO_ANCHOR.MIDDLE)
     text(slide, 15.0, 3.9, 17.6, 0.9, "What this part delivers", size=12, bold=True, color=color)
     text(slide, 15.0, 4.9, 17.4, 3.2, delivers, size=19, color=DARK, line_spacing=1.35)
     text(slide, 15.0, 8.9, 17.4, 0.9, "The five parts, in order", size=12, bold=True, color=GREY)
     for i, (n2, _t2, short2, *_) in enumerate(PARTS, start=1):
-        y = 9.9 + (i - 1) * 1.6
+        y = 9.75 + (i - 1) * 1.45
         active = i == idx
-        rect(slide, 15.0, y, 17.4, 1.25, color if active else LIGHT,
+        rect(slide, 15.0, y, 17.4, 1.2, color if active else LIGHT,
              shape=MSO_SHAPE.ROUNDED_RECTANGLE, adj=0.2)
-        text(slide, 15.4, y, 2.4, 1.25, f"Part {n2}", size=10.5, bold=True,
+        text(slide, 15.4, y, 2.6, 1.2, f"Part {n2}", size=9.5, bold=True,
              color=WHITE if active else GREY, anchor=MSO_ANCHOR.MIDDLE)
-        text(slide, 17.9, y, 14.4, 1.25, short2, size=11.5,
+        text(slide, 18.1, y, 14.2, 1.2, short2, size=9.5,
              bold=active, color=WHITE if active else DARK, anchor=MSO_ANCHOR.MIDDLE)
     notes(slide,
           f"Part {num} begins. Opening line: 'Part {num}: {title}.' "
@@ -284,27 +294,27 @@ def build() -> Path:
     next_page()
     rect(slide, 0, 0, 33.87, 19.05, NAVY, shape=MSO_SHAPE.RECTANGLE)
     rect(slide, 0, 13.1, 33.87, 0.12, BLUE, shape=MSO_SHAPE.RECTANGLE)
-    text(slide, 2.6, 2.9, 28, 1, "FTEC5520 Applied Blockchain and Cryptocurrencies", size=14,
+    text(slide, 2.6, 2.6, 28, 1, "FTEC5520 Applied Blockchain and Cryptocurrencies", size=13,
          color=RGBColor(0xB0, 0xBE, 0xC5))
-    text(slide, 2.6, 4.3, 30, 2.2, "Anti-Scalping Concert Ticketing System", size=38, bold=True,
+    text(slide, 2.6, 3.9, 30.6, 1.8, "Anti-Scalping Concert Ticketing System", size=29, bold=True,
          color=WHITE)
-    text(slide, 2.6, 6.6, 29, 1.1, "Five parts, five speakers, one running private chain", size=17,
+    text(slide, 2.6, 6.0, 30, 1.0, "Five parts, five speakers, one running private chain", size=15,
          color=RGBColor(0xCF, 0xD8, 0xDC))
-    text(slide, 2.6, 8.1, 29, 1.0,
+    text(slide, 2.6, 7.2, 30, 1.0,
          "Geth Clique chain  -  ERC-721 tickets  -  price-capped resale  -  on-chain check-in",
-         size=13.5, color=RGBColor(0x90, 0xCA, 0xF9))
+         size=11.5, color=RGBColor(0x90, 0xCA, 0xF9))
     for i, (num, _title, short, _color, _delivers) in enumerate(PARTS):
         x = 2.6 + i * 5.75
-        rect(slide, x, 9.9, 5.35, 2.4, RGBColor(0x2B, 0x48, 0x78))
-        text(slide, x + 0.35, 10.05, 4.7, 0.8, f"Part {num}", size=12, bold=True, color=WHITE)
-        text(slide, x + 0.35, 10.9, 4.7, 1.3, short, size=9,
+        rect(slide, x, 8.9, 5.35, 2.9, RGBColor(0x2B, 0x48, 0x78))
+        text(slide, x + 0.35, 9.05, 4.7, 0.7, f"Part {num}", size=10.5, bold=True, color=WHITE)
+        text(slide, x + 0.35, 9.8, 4.7, 1.8, short, size=8,
              color=RGBColor(0xB0, 0xBE, 0xC5), line_spacing=1.15)
-    text(slide, 2.6, 13.9, 28, 0.9,
+    text(slide, 2.6, 12.6, 28, 0.9,
          f"Group 18 (five members)  -  contract "
          f"{net['contract_address'][:10]}...{net['contract_address'][-4:]}  -  "
          f"{s['total_cases']} test cases, pass rate {s['pass_rate']}%",
          size=12, color=RGBColor(0xCF, 0xD8, 0xDC))
-    text(slide, 2.6, 15.0, 28, 0.9,
+    text(slide, 2.6, 13.6, 28, 0.9,
          "All figures in this deck come from one continuous run on the chain",
          size=11, color=RGBColor(0x90, 0xCA, 0xF9), italic=True)
     notes(slide,
@@ -319,7 +329,7 @@ def build() -> Path:
               "Each part ends with a handover, because that is how the work actually moved", page=page)
     body = [[num, title, delivers] for num, title, _s, _c, delivers in PARTS]
     table(slide, MARGIN, 3.15, 30.6, ["Part", "What the part covers", "Delivers to the next part"], body,
-          [1.9, 14.2, 14.5], font_size=10.5, row_h=1.75, center_cols=(0,))
+          [1.9, 14.2, 14.5], font_size=9.5, row_h=1.5, center_cols=(0,))
     text(slide, MARGIN, 14.3, 30.6, 2.4,
          ["Then: one live end-to-end demo (seven actions) and Q & A.",
           "Evidence for every claim is in results/test_results.csv and results/test_evidence.json,",
@@ -352,17 +362,17 @@ def build() -> Path:
         rect(slide, x, 3.2, 9.8, 8.6, LIGHT)
         rect(slide, x, 3.2, 9.8, 0.2, color, shape=MSO_SHAPE.RECTANGLE)
         text(slide, x + 0.45, 3.65, 8.9, 0.9, head, size=17, bold=True, color=color)
-        text(slide, x + 0.45, 4.75, 8.9, 2.9, body_txt.split("\n"), size=11.5, color=DARK,
-             line_spacing=1.45)
+        text(slide, x + 0.45, 4.7, 8.9, 3.2, body_txt.split("\n"), size=10, color=DARK,
+             line_spacing=1.4)
         rect(slide, x + 0.45, 8.0, 8.9, 0.03, RGBColor(0xCF, 0xD8, 0xDC),
              shape=MSO_SHAPE.RECTANGLE)
-        text(slide, x + 0.45, 8.4, 8.9, 1.5, fix, size=11.5, bold=True, color=NAVY)
+        text(slide, x + 0.45, 8.5, 8.9, 2.6, fix, size=10, bold=True, color=NAVY)
     rect(slide, MARGIN, 12.6, 30.6, 3.3, LIGHT)
     text(slide, MARGIN + 0.5, 12.6, 29.6, 3.3,
          ["Working hypothesis: a rule in an operator's database is a policy;",
           "a require executed by the EVM is a fact. The goal is therefore not a pretty site but a system",
           "in which 'skip the website' is technically impossible."],
-         size=13, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.5)
+         size=11, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.45)
     notes(slide,
           "Shared context, about one minute. Use the three columns as the running theme: Part 2 attacks "
           "column 1, Part 3 attacks columns 2 and 3, Part 4 builds the credential, Part 5 measures whether "
@@ -392,20 +402,20 @@ def build() -> Path:
         "deploy.py: deploys, then writes config/network.json - the only source of the address",
     ]
     for i, item in enumerate(bullets_left):
-        text(slide, MARGIN, 7.8 + i * 1.55, 15.2, 1.35, "- " + item, size=10.5, color=DARK,
+        text(slide, MARGIN, 7.7 + i * 1.7, 15.4, 1.6, "- " + item, size=9.5, color=DARK,
              line_spacing=1.2)
     text(slide, 17.6, 7.0, 14.2, 0.8, "What the chain actually provides", size=12.5, bold=True,
          color=BLUE)
     text(slide, 17.6, 7.8, 13.8, 7.0,
          ["No business logic of its own - it is the executor.",
-          "What it gives the other four parts:",
+          "What it gives the other parts:",
           "",
-          "-  a fixed address that never changes mid-demo",
-          "-  a receipt for every transaction, including failures",
-          "-  a block time low enough to show live state changes",
+          "-  a fixed address, unchanged during the demo",
+          "-  a receipt for every transaction, failures too",
+          "-  blocks fast enough to show live state",
           "",
-          "That is why every later claim can end with a tx hash."],
-         size=10.5, color=DARK, line_spacing=1.45)
+          "So every later claim can end with a tx hash."],
+         size=9.5, color=DARK, line_spacing=1.4)
     handoff(slide, "Parts 2 and 3", "ABI + bytecode (contracts/build/ConcertTicket.json) and a deployed "
                                    "address the interface can call", BLUE)
     notes(slide,
@@ -419,7 +429,7 @@ def build() -> Path:
     next_page()
     title_bar(slide, "Part 1: one interface, one return shape",
               "So no page ever builds a raw transaction and no page ever guesses a result", 1, page)
-    text(slide, MARGIN, 3.1, 15.0, 0.8, "The six functions every later part calls", size=12.5,
+    text(slide, MARGIN, 2.95, 15.0, 0.8, "The six functions every later part calls", size=11,
          bold=True, color=BLUE)
     body = [["get_ticket_owner(tokenId)", "read", "current owner, the single source of truth"],
             ["buy_ticket(eventId, buyer, qty)", "write", "purchase and mint"],
@@ -437,14 +447,13 @@ def build() -> Path:
           "          gas_used, status, error )"],
          size=11.5, color=NAVY, line_spacing=1.5)
     text(slide, 17.8, 6.9, 14.0, 6.4,
-         ["Why this matters for the presentation:",
+         ["Why it matters:",
           "",
-          "-  every slide from Part 2 onwards quotes the same three",
-          "   fields, so the evidence format never changes",
-          "-  estimate_gas runs before sending, so a call that must fail",
-          "   costs no gas and returns the contract's own reason",
-          "-  failures are recorded, not hidden: status=0 is data"],
-         size=10.5, color=DARK, line_spacing=1.45)
+          "-  every later slide quotes the same fields",
+          "-  estimate_gas runs first, so a doomed call costs",
+          "   no gas and returns the contract's own reason",
+          "-  failures are data, not silence: status=0"],
+         size=9.5, color=DARK, line_spacing=1.4)
     handoff(slide, "Part 4", "RPC url, chain id, contract address, ABI and these functions - the page "
                                "layer only calls them", BLUE)
     notes(slide,
@@ -467,20 +476,19 @@ def build() -> Path:
             ["canPurchase", "read-only pre-check returning (bool, reason)", "used by Part 4"],
             ["withdrawProceeds", "pull payment: the organizer withdraws, the sale never blocks", "T01"]]
     table(slide, MARGIN, 3.25, 18.4, ["Function", "Rule encoded in the contract", "Test"], body,
-          [4.4, 11.6, 2.4], font_size=10, row_h=1.5, center_cols=(2,))
-    text(slide, 20.8, 3.15, 11.2, 0.8, "Measured in this run", size=12, bold=True, color=TEAL)
+          [4.4, 11.6, 2.4], font_size=9, row_h=1.4, center_cols=(2,))
+    text(slide, 20.8, 2.95, 11.2, 0.75, "Measured in this run", size=11, bold=True, color=TEAL)
     ev = [["T01", "event created, fields readable", gas("T01")],
           ["T05a", "2 tickets in one call = the limit", gas("T05a")],
           ["T05b", "3rd ticket rejected", gas("T05b")],
           ["T06a", "last ticket sold", gas("T06a")],
           ["T06b", "purchase after sell-out rejected", gas("T06b")]]
-    table(slide, 20.8, 3.95, 11.2, ["Case", "What it proves", "Gas"], ev,
-          [1.5, 6.6, 2.2], font_size=9.5, row_h=1.35, center_cols=(0, 2))
-    text(slide, MARGIN, 12.55, 30.6, 3.4,
-         ["T02b is a deliberate deviation: createEvent has no access control, so anyone can create an event",
-          "and become its organizer - Part 5 reports it as a finding instead of hiding it. canPurchase is the",
-          "read-only pre-check the page layer calls; its conditions are asserted on chain by T04, T05b and T06b."],
-         size=10, color=GREY, line_spacing=1.4)
+    table(slide, 20.8, 3.8, 11.2, ["Case", "What it proves", "Gas"], ev,
+          [1.5, 6.6, 2.2], font_size=8.5, row_h=1.15, center_cols=(0, 2))
+    text(slide, MARGIN, 13.15, 30.6, 2.8,
+         ["T02b is a deliberate deviation: createEvent has no access control, so anyone can create an event.",
+          "canPurchase is the read-only pre-check the page calls; T04, T05b and T06b assert the same rules on chain."],
+         size=9, color=GREY, line_spacing=1.35)
     handoff(slide, "Part 3", "Ticket state (ownerOf, tokenToEvent) and the purchase path that the resale "
                                "rules must reuse - one ticket struct, not two", TEAL)
     notes(slide,
@@ -510,18 +518,17 @@ def build() -> Path:
     text(slide, 17.9, 3.45, 13.4, 0.9, "What Part 3 inherits", size=12.5, bold=True, color=TEAL)
     text(slide, 17.9, 4.45, 13.4, 10.6,
          ["ticketToEvent[tokenId]",
-          "  -  which event a ticket belongs to, so the price cap can be",
-          "     computed from that event's original price",
+          "  -  the event a ticket belongs to, so the price cap",
+          "     can be derived from that event's price",
           "",
-          "tickets[tokenId] = {isListed, listingPrice,",
-          "                    resaleCount, used}",
-          "  -  the four fields the resale and check-in rules mutate",
+          "tickets[tokenId] =",
+          "  {isListed, listingPrice, resaleCount, used}",
+          "  -  the four fields resale and check-in mutate",
           "",
-          "purchaseTickets' require order",
-          "  -  stock -> wallet limit -> whitelist -> payment",
-          "     (this order decides which error a user sees, and it is",
-          "      why one negative test had to be rewritten)"],
-         size=10, color=DARK, line_spacing=1.32)
+          "require order:",
+          "  stock -> limit -> whitelist -> payment",
+          "  (it decides which error a user sees)"],
+         size=9, color=DARK, line_spacing=1.32)
     handoff(slide, "Part 3", "One ticket struct with four mutable fields, and a purchase path that "
                                "already enforces stock, limit, whitelist and payment", TEAL)
     notes(slide,
@@ -538,31 +545,31 @@ def build() -> Path:
     next_page()
     title_bar(slide, "Part 3: the price cap follows the clock",
               "Two regimes, one boundary, and a resale counter that cannot be reset", 3, page)
-    text(slide, MARGIN, 3.1, 15.4, 0.8, "getMaxResalePrice(tokenId)", size=12.5, bold=True,
-         color=NAVY)
+
     body = [["More than 7 days out", "120% of the original price", "T08 / T08b"],
             ["7 days or less", "100% of the original price", "T09a / T09b / T09c"],
             ["Exactly 7 days", "cap switches to 100% (boundary)", "T09d"],
             ["Resale #1 to #3", "allowed, the counter increments", "T07a / T07b / T10a"],
             ["A fourth listing", "rejected: Max resale limit reached", "T10b"]]
-    table(slide, MARGIN, 3.9, 15.4, ["Condition", "Enforced cap / effect", "Test"], body,
-          [5.2, 7.6, 3.0], font_size=9.8, row_h=1.45, center_cols=(2,))
-    text(slide, 17.8, 3.1, 14.0, 0.8, "Why the rule must be time-based", size=12.5, bold=True,
+    table(slide, MARGIN, 3.3, 15.4, ["Condition", "Enforced cap / effect", "Test"], body,
+          [5.2, 7.6, 3.0], font_size=8.8, row_h=1.32, center_cols=(2,))
+    text(slide, 17.8, 3.3, 14.0, 0.8, "Why the rule must be time-based", size=11, bold=True,
          color=NAVY)
-    text(slide, 17.8, 3.95, 13.9, 4.4,
-         ["A flat 120% cap invites the obvious arbitrage: wait for the",
-          "last week, when demand peaks, and still charge a 20% premium.",
+    text(slide, 17.8, 4.05, 13.9, 4.2,
+         ["A flat 120% cap invites the obvious arbitrage:",
+          "wait for the last week, when demand peaks, and",
+          "still charge a 20% premium.",
           "",
-          "Tying the cap to block.timestamp removes that window, and it is",
-          "the chain - not the page - that reads the clock."],
-         size=10.5, color=DARK, line_spacing=1.45)
-    rect(slide, 17.8, 8.6, 13.9, 5.0, LIGHT)
-    text(slide, 18.2, 8.8, 13.1, 4.6,
+          "Tying the cap to block.timestamp closes that",
+          "window - and the chain reads the clock, not the page."],
+         size=9.5, color=DARK, line_spacing=1.4)
+    rect(slide, 17.8, 8.5, 13.9, 5.1, LIGHT)
+    text(slide, 18.2, 8.75, 13.1, 4.7,
          ["Measured:",
-          f"  T09b  list 0.51 with a 0.50 cap   -> rejected ({gas('T09b')} gas)",
-          f"  T09c  list exactly 0.50           -> accepted ({gas('T09c')} gas)",
-          f"  T10b  fourth listing at count 3   -> rejected ({gas('T10b')} gas)"],
-         size=9.5, color=DARK, line_spacing=1.55)
+          f"  T09b  list 0.51, cap 0.50  -> rejected ({gas('T09b')})",
+          f"  T09c  list exactly 0.50    -> accepted ({gas('T09c')})",
+          f"  T10b  4th listing at 3     -> rejected ({gas('T10b')})"],
+         size=9, color=DARK, line_spacing=1.5)
     handoff(slide, "Part 4", "listForResale / buyResale / cancelListing and getMaxResalePrice - the page "
                                "only displays the cap the contract returns", NAVY)
     notes(slide,
@@ -588,12 +595,12 @@ def build() -> Path:
             ["T11b", "holder calls safeTransferFrom", "mined, status=0", gas("T11b")],
             ["B02", "same attack, no UI, raw Web3.py", "mined, status=0", gas("B02")]]
     table(slide, MARGIN, 7.7, 15.2, ["Case", "Attempt", "Result", "Gas"], body,
-          [1.3, 6.4, 4.0, 1.8], font_size=9.5, row_h=1.35, center_cols=(0, 2, 3))
-    text(slide, MARGIN, 13.35, 15.2, 2.4,
-         ["Gas is still charged on all three. The transaction exists, the",
-          "state did not change - that is what 'the rule is on chain' means."],
-         size=10, color=GREY, line_spacing=1.4)
-    text(slide, 17.6, 3.05, 14.2, 0.8, "Check-in: one ticket, one entry", size=12.5, bold=True,
+          [1.3, 6.4, 4.0, 1.8], font_size=8.5, row_h=1.25, center_cols=(0, 2, 3))
+    text(slide, MARGIN, 13.6, 15.2, 2.2,
+         ["Gas is still charged on all three: the transaction exists,",
+          "the state did not change. That is 'the rule is on chain'."],
+         size=9, color=GREY, line_spacing=1.35)
+    text(slide, 17.6, 2.95, 14.2, 0.8, "Check-in: one ticket, one entry", size=11, bold=True,
          color=NAVY)
     body2 = [["T15b", "authorised verifier, first check-in", "used = true"],
              ["T16", "same ticket, second check-in", "Ticket already used"],
@@ -601,7 +608,7 @@ def build() -> Path:
              ["E09", "check-in while listed", "listing cleared automatically"],
              ["T07b", "5% platform fee on a 1.2 ETH resale", "0.06 ETH booked to the owner"]]
     table(slide, 17.6, 3.85, 14.2, ["Case", "Action", "Observed"], body2,
-          [1.9, 6.9, 5.4], font_size=9.5, row_h=1.35, center_cols=(0,))
+          [1.9, 6.9, 5.4], font_size=8.5, row_h=1.25, center_cols=(0,))
     handoff(slide, "Parts 4 and 5", "A ticket that cannot move outside the rules, one Boolean that proves "
                                    "entry, and five cases for Part 5 to re-run", NAVY)
     notes(slide,
@@ -619,27 +626,27 @@ def build() -> Path:
     next_page()
     title_bar(slide, "Part 4: six pages that only display the chain",
               "Every screen reads ownerOf or tickets() - none of them caches a business decision", 4, page)
-    text(slide, MARGIN, 2.85, 17.6, 0.45,
-         "Buy Tickets: pre-check, transaction and the ownerOf read-back on one screen",
-         size=9.5, bold=True, color=BLUE)
+    text(slide, MARGIN, 2.8, 17.6, 0.45,
+         "Buy Tickets: pre-check, transaction and ownerOf read-back on one screen",
+         size=8.5, bold=True, color=BLUE)
     picture(slide, SHOTS / "03_buy_tickets.png", MARGIN, 3.5, w=17.6)
-    text(slide, 20.0, 3.0, 12.4, 0.6, "What to look at on each page", size=11.5, bold=True, color=BLUE)
-    text(slide, 20.0, 3.75, 12.4, 8.6,
-         ["Overview - chainId, block number, contract address,",
-          "balances and the most recent ticket transfers.",
+    text(slide, 20.0, 2.95, 12.4, 0.6, "What to look at on each page", size=10, bold=True, color=BLUE)
+    text(slide, 20.0, 3.7, 12.4, 8.4,
+         ["Overview - chainId, block number, contract,",
+          "balances, recent transfers.",
           "",
-          "Events - create an event, toggle the sale switch,",
-          "batch whitelist, settle the proceeds.",
+          "Events - create an event, toggle the sale",
+          "switch, batch whitelist, settle.",
           "",
-          "Resale - the live cap from getMaxResalePrice, list,",
-          "buy, cancel; the over-price button fails on purpose."],
-         size=9.5, color=DARK, line_spacing=1.45)
+          "Resale - the live cap, list, buy, cancel;",
+          "the over-price button fails on purpose."],
+         size=9, color=DARK, line_spacing=1.4)
     for i, (fname, label) in enumerate([("01_overview.png", "Overview"),
                                         ("02_events.png", "Events"),
                                         ("05_resale_market.png", "Resale market")]):
         x = MARGIN + i * 10.4
         picture(slide, SHOTS / fname, x, 12.75, w=9.6)
-        text(slide, x, 17.5, 9.6, 0.5, label, size=9, bold=True, color=GREY)
+        text(slide, x, 17.5, 9.6, 0.5, label, size=8, bold=True, color=GREY)
     notes(slide,
           "Part 4, about two minutes. Start with the hero screenshot: the buy page is the one screen where the "
           "pre-check and the transaction appear together, so it is the best single example of the "
@@ -652,29 +659,30 @@ def build() -> Path:
     title_bar(slide, "Part 4: the QR is a signed claim, not a token id",
               "A screenshot must fail; a resold ticket must fail; a repeat entry must fail", 4, page)
     picture(slide, SHOTS / "04_my_tickets.png", MARGIN, 3.15, h=10.6)
-    text(slide, 9.35, 3.15, 10.5, 0.8, "What the QR payload carries", size=11.5, bold=True, color=BLUE)
-    rect(slide, 9.35, 3.9, 10.5, 2.0, LIGHT)
-    text(slide, 9.55, 4.1, 10.1, 1.7,
-         ["{ v, token_id, holder, nonce, issued_at, expires_at, sig }",
-          "sig = the holder's EIP-191 signature over a fixed field order"],
-         size=9.5, color=NAVY, line_spacing=1.35)
-    text(slide, 9.35, 6.15, 10.5, 0.8, "Five checks, in this order", size=11.5, bold=True, color=BLUE)
+    text(slide, 9.35, 3.15, 10.5, 0.8, "What the QR payload carries", size=10.5, bold=True, color=BLUE)
+    rect(slide, 9.35, 3.85, 10.5, 2.5, LIGHT)
+    text(slide, 9.55, 4.0, 10.1, 2.2,
+         ["{ v, token_id, holder, nonce,",
+          "  issued_at, expires_at, sig }",
+          "sig = holder's EIP-191 signature"],
+         size=8.5, color=NAVY, line_spacing=1.45)
+    text(slide, 9.35, 6.55, 10.5, 0.75, "Five checks, in this order", size=10.5, bold=True, color=BLUE)
     checks = [["1", "version", "T13"], ["2", "recovered signer == holder", "T14a"],
               ["3", "not expired (180 s)", "T14b"], ["4", "holder == on-chain ownerOf", "T14c"],
               ["5", "used is still false", "T15b"]]
-    table(slide, 9.35, 6.9, 10.5, ["", "Check", "Case"], checks, [0.9, 7.2, 2.4],
-          font_size=9, row_h=1.15, center_cols=(0, 2))
+    table(slide, 9.35, 7.35, 10.5, ["", "Check", "Case"], checks, [0.9, 7.2, 2.4],
+          font_size=8.5, row_h=1.05, center_cols=(0, 2))
     picture(slide, SHOTS / "06_staff_checkin.png", 20.4, 3.15, w=13.0)
-    text(slide, 20.4, 9.9, 13.0, 5.0,
-         ["Three attack surfaces, three different checks:",
+    text(slide, 20.4, 10.0, 13.0, 5.0,
+         ["Three attacks, three different checks:",
           "",
-          "-  forwarding a screenshot  ->  fails on expiry",
-          "-  the previous owner      ->  fails on ownerOf",
-          "-  a second entry          ->  fails on used",
+          "-  forwarded screenshot -> expiry",
+          "-  previous owner      -> ownerOf",
+          "-  second entry        -> used",
           "",
-          "Off-chain proves who holds it; the chain performs",
-          "the irreversible check-in."],
-         size=10, color=DARK, line_spacing=1.4)
+          "Off-chain proves who holds it; the chain",
+          "does the irreversible check-in."],
+         size=9, color=DARK, line_spacing=1.35)
     handoff(slide, "Part 5", "Six pages, a signed QR flow and the check-in page - plus the screenshots "
                                "used in the report", BLUE)
     notes(slide,
@@ -700,15 +708,14 @@ def build() -> Path:
     picture(slide, CHARTS / "01_test_results_by_module.png", MARGIN, 7.0, w=16.8)
     text(slide, 19.0, 7.0, 13.2, 0.8, "Judging rules I kept to", size=11.5, bold=True, color=GREEN)
     text(slide, 19.0, 7.85, 13.2, 7.4,
-         ["-  a case expected to fail only passes when the",
-          "   contract really rejects it",
-          "-  positive cases also read ownerOf, resaleCount,",
-          "   used and the platform-fee balance",
-          "-  each case creates its own event, so the suite",
-          "   repeats without redeploying",
-          "-  two documented deviations instead of two",
-          "   silent exclusions (T02b, E07)"],
-         size=10, color=DARK, line_spacing=1.45)
+         ["-  a case expected to fail passes only",
+          "   when the contract really rejects it",
+          "-  positive cases also read ownerOf,",
+          "   resaleCount, used and the fee balance",
+          "-  each case makes its own event, so the",
+          "   suite repeats without redeploying",
+          "-  two deviations documented, not hidden"],
+         size=9, color=DARK, line_spacing=1.4)
     handoff(slide, "Everyone", "One CSV and one JSON that Parts 1 to 4 can point at: 48 rows, each with a "
                                "transaction hash, a block and a gas figure", GREEN)
     notes(slide,
@@ -785,22 +792,22 @@ def build() -> Path:
             ["-", "After regenerating accounts, network.json kept stale addresses",
              "deployment defect", "fixed: addresses derive from the keys"]]
     table(slide, MARGIN, 3.2, 30.6, ["Id", "Finding", "Nature", "Handling"], body,
-          [1.4, 14.0, 4.4, 10.8], font_size=10, row_h=1.55, center_cols=(0, 2))
-    text(slide, MARGIN, 10.0, 14.6, 0.8, "What the chain does not fix", size=12, bold=True,
+          [1.4, 14.0, 4.4, 10.8], font_size=8.5, row_h=1.3, center_cols=(0, 2))
+    text(slide, MARGIN, 10.6, 14.6, 0.8, "What the chain does not fix", size=10, bold=True,
          color=RED)
-    text(slide, MARGIN, 10.85, 14.6, 5.2,
-         ["-  one person, many wallets: the limit is per address",
+    text(slide, MARGIN, 11.4, 14.6, 4.6,
+         ["-  one person, many wallets: limit is per address",
           "-  cash top-ups and whole-wallet transfers",
-          "-  server-side signing in this demo is not user signing",
-          "-  a single Clique signer is not a production trust model"],
-         size=10.5, color=DARK, line_spacing=1.5)
-    text(slide, 17.6, 10.0, 14.2, 0.8, "What it does fix", size=12, bold=True, color=GREEN)
-    text(slide, 17.6, 10.85, 14.2, 5.2,
-         ["-  ticket uniqueness and ownership are public state",
-          "-  the five rules cannot be bypassed by any caller",
-          "-  every refusal is a permanent, auditable receipt",
-          "   (24 of them in this run, with gas attached)"],
-         size=10.5, color=DARK, line_spacing=1.5)
+          "-  server-side signing is not user signing",
+          "-  one Clique signer is not a trust model"],
+         size=9, color=DARK, line_spacing=1.45)
+    text(slide, 17.6, 10.6, 14.2, 0.8, "What it does fix", size=10, bold=True, color=GREEN)
+    text(slide, 17.6, 11.4, 14.2, 4.6,
+         ["-  ticket ownership is public state",
+          "-  the five rules cannot be bypassed",
+          "-  every refusal is an auditable receipt",
+          "   (24 of them, with gas attached)"],
+         size=9, color=DARK, line_spacing=1.45)
     notes(slide,
           "Part 5, about two and a half minutes. Present the three findings as work, not problems: two are "
           "contract-level (a deviation and a defect we found by attacking our own system) and one was a "
@@ -813,19 +820,18 @@ def build() -> Path:
     title_bar(slide, "Conclusion: what each part proved",
               "Four sentences, in the order the audience just heard them", page=page)
     conclusions = [
-        ("The rules are enforced", "Over-buying, over-pricing, direct transfer, duplicate and unauthorised "
-                                   "check-in are all rejected - with the website bypassed", GREEN),
-        ("The rules are verifiable", "Every claim maps to a transaction hash; positive cases add an "
-                                     "on-chain read-back", BLUE),
-        ("The cost is real", "Writes cost gas and rejected writes cost gas too, so pre-checks and "
-                             "off-chain data are requirements", AMBER),
+        ("The rules are enforced", "Over-buying, over-pricing, direct transfer and duplicate check-in "
+                                   "are all rejected - website bypassed", GREEN),
+        ("The rules are verifiable", "Every claim maps to a transaction hash, plus a state read-back",
+         BLUE),
+        ("The cost is real", "Rejected writes cost gas too, so pre-checks are a requirement", AMBER),
         ("The boundary is clear", "The chain governs tickets; people need identity and law", NAVY),
     ]
     for i, (head, body_txt, color) in enumerate(conclusions):
         y = 3.2 + i * 3.2
         rect(slide, MARGIN, y, 0.15, 2.7, color, shape=MSO_SHAPE.RECTANGLE)
-        text(slide, MARGIN + 0.55, y + 0.2, 8.2, 1.1, head, size=15, bold=True, color=color)
-        text(slide, 9.8, y + 0.2, 21.4, 2.3, body_txt, size=11.5, color=DARK, line_spacing=1.4)
+        text(slide, MARGIN + 0.55, y + 0.2, 8.2, 1.1, head, size=13, bold=True, color=color)
+        text(slide, 9.9, y + 0.2, 21.2, 2.3, body_txt, size=10, color=DARK, line_spacing=1.4)
     notes(slide,
           "Whoever closes the five parts, about one minute. Four sentences, no new material: enforced, "
           "verifiable, costly, bounded. Then hand over to the live demo.")
@@ -843,13 +849,13 @@ def build() -> Path:
                   ("6", "buyerB shows the QR, verifier checks in", "checkIn", "Part 4"),
                   ("7", "Second check-in rejected", "revert", "Parts 3 and 4")]
     for i, (num, action, fn, owner) in enumerate(demo_steps):
-        y = 3.1 + i * 1.85
+        y = 2.95 + i * 1.95
         rect(slide, MARGIN, y + 0.15, 1.1, 1.1, BLUE, shape=MSO_SHAPE.OVAL)
         text(slide, MARGIN, y + 0.32, 1.1, 0.8, num, size=12, bold=True, color=WHITE,
              align=PP_ALIGN.CENTER)
-        text(slide, MARGIN + 1.5, y + 0.2, 13.0, 1.1, action, size=12, color=DARK)
-        text(slide, 16.6, y + 0.2, 8.0, 1.1, fn, size=10.5, color=GREY)
-        text(slide, 24.8, y + 0.2, 6.4, 1.1, owner, size=10, color=RGBColor(0x90, 0xA4, 0xAE))
+        text(slide, MARGIN + 1.5, y + 0.2, 13.0, 1.1, action, size=10, color=DARK)
+        text(slide, 16.6, y + 0.2, 8.0, 1.1, fn, size=9, color=GREY)
+        text(slide, 24.8, y + 0.2, 6.4, 1.1, owner, size=8.5, color=RGBColor(0x90, 0xA4, 0xAE))
     text(slide, MARGIN, 16.7, 30.6, 1.4,
          "Fallback if the node misbehaves: results/screenshots/ and results/demo_report.md - "
          "every conclusion has offline evidence", size=10.5, color=GREY)
