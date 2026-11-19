@@ -118,11 +118,12 @@ def notes(slide, script: str) -> None:
 
 
 def title_bar(slide, title, kicker=None, part_idx=None, page=None):
+    """Title band only: no subtitle line. `kicker` is accepted but not drawn."""
     rect(slide, 0, 0, 33.87, 0.24, NAVY, shape=MSO_SHAPE.RECTANGLE)
-    size = 30 if len(title) <= 42 else (27 if len(title) <= 54 else 24)
-    text(slide, MARGIN, 0.6, 27.4, 1.55, title, size=size, bold=True, color=NAVY)
-    if kicker:
-        text(slide, MARGIN, 2.2, 30.4, 0.9, kicker, size=14, color=GREY)
+    size = 32 if len(title) <= 44 else (29 if len(title) <= 56 else 26)
+    text(slide, MARGIN, 0.55, 27.6, 1.7, title, size=size, bold=True, color=NAVY)
+    accent = PARTS[part_idx - 1][3] if part_idx else BLUE
+    rect(slide, MARGIN, 2.3, 5.4, 0.1, accent, shape=MSO_SHAPE.RECTANGLE)
     if part_idx:
         num, _t, short, color, _d = PARTS[part_idx - 1]
         text(slide, 22.8, 0.42, 9.4, 0.8, f"Part {num} of 5  -  {short}", size=11.5, bold=True,
