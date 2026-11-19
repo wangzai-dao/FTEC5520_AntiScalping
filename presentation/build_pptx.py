@@ -281,8 +281,6 @@ def build() -> Path:
          color=RGBColor(0xB0, 0xBE, 0xC5))
     text(slide, 2.6, 3.2, 30.6, 2.2, "Anti-Scalping Concert Ticketing System", size=37, bold=True,
          color=WHITE)
-    text(slide, 2.6, 5.7, 30, 1.1, "Five parts, five speakers, one running private chain", size=18,
-         color=RGBColor(0xCF, 0xD8, 0xDC))
     text(slide, 2.6, 7.0, 30, 1.0,
          "Geth Clique chain  -  ERC-721 tickets  -  price-capped resale  -  on-chain check-in",
          size=13.5, color=RGBColor(0x90, 0xCA, 0xF9))
@@ -292,14 +290,7 @@ def build() -> Path:
         text(slide, x + 0.4, 8.8, 4.8, 0.9, f"Part {num}", size=15, bold=True, color=WHITE)
         text(slide, x + 0.4, 9.9, 4.8, 2.6, short, size=11,
              color=RGBColor(0xB0, 0xBE, 0xC5), line_spacing=1.15)
-    text(slide, 2.6, 15.0, 30, 1.0,
-         f"Group 18 (five members)  -  contract "
-         f"{net['contract_address'][:10]}...{net['contract_address'][-4:]}  -  "
-         f"{s['total_cases']} test cases, pass rate {s['pass_rate']}%",
-         size=13.5, color=RGBColor(0xCF, 0xD8, 0xDC))
-    text(slide, 2.6, 16.2, 30, 1.0,
-         "All figures in this deck come from one continuous run on the chain",
-         size=12, color=RGBColor(0x90, 0xCA, 0xF9), italic=True)
+    text(slide, 2.6, 15.0, 30, 1.43, "Group 18 ", size=24, color=RGBColor(0xCF, 0xD8, 0xDC))
     notes(slide,
           "Opening speaker. One sentence on the project: we moved five ticketing rules from a database "
           "into a smart contract, then tried to break them. Announce the format: five parts, each speaker "
@@ -620,6 +611,12 @@ def build() -> Path:
           f"  T10b  4th listing at 3",
           f"           -> rejected ({gas('T10b')})"],
          size=12.5, color=DARK, line_spacing=1.55)
+    text(slide, MARGIN, 15.75, 17.4, 2.5,
+         ["cancelListing lets the seller withdraw a listing (E05a);",
+          "a cancelled listing cannot be bought (E05b).",
+          "The 5% fee accrues in pendingPlatformFees and the owner",
+          "withdraws it with withdrawPlatformFees (T07b)."],
+         size=12.5, color=GREY, line_spacing=1.3)
     notes(slide,
           "Part 3, two and a half minutes. Two regimes and the exact boundary: T09d proves the switch by "
           "listing 1.00 and 1.01 ETH against a 1.00 cap. Then the counter: three resales, the fourth "
@@ -656,10 +653,61 @@ def build() -> Path:
              ["T07b", "5% fee on 1.2 ETH", "0.06 ETH"]]
     table(slide, 18.0, 3.95, 14.2, ["Case", "Action", "Observed"], body2,
           [2.2, 6.8, 5.2], font_size=13, row_h=1.8, center_cols=(0,))
+    text(slide, 18.0, 15.05, 14.2, 2.2,
+         ["Verifier rights are granted with setVerifier (onlyOwner),",
+          "not hard-wired to the owner - T17 rejects a stranger."],
+         size=12.5, color=GREY, line_spacing=1.3)
     notes(slide,
           "Part 3, three minutes - the heart of the story. Start from the escape hatch: ERC-721 gives "
           "everyone a transfer function, so a cap inside buyResale alone would be theatre. Then the three "
           "rows: all mined, all status=0, all paid gas. Finish with check-in.")
+
+    slide = blank(prs)
+    next_page()
+    title_bar(slide, "Part 3: the three guards behind the money", None, 3, page)
+    guards = [
+        ("Reentrancy guard",
+         ["nonReentrant on buy, resale,",
+          "withdraw and platform fees.",
+          "",
+          "The DAO, 2016: the classic",
+          "EVM attack - re-entering",
+          "withdraw before the balance",
+          "is cleared."],
+         "OpenZeppelin ReentrancyGuard", BLUE),
+        ("Pull over push",
+         ["Money is credited, never pushed:",
+          "pendingProceeds[organizer] and",
+          "pendingPlatformFees[owner].",
+          "",
+          "A seller that rejects ETH cannot",
+          "block the sale - no DoS window."],
+         "withdrawProceeds / withdrawPlatformFees", TEAL),
+        ("No self-trade",
+         ["buyResale rejects seller == buyer,",
+          "so wash trading cannot inflate the",
+          "resale counter.",
+          "",
+          "The business asked for the rule;",
+          "one require enforces it."],
+         "E02: rejected, 35,581 gas", GREEN),
+    ]
+    for i, (head, lines, evidence, color) in enumerate(guards):
+        x = MARGIN + i * 10.5
+        rect(slide, x, 3.0, 9.9, 10.6, LIGHT)
+        rect(slide, x, 3.0, 9.9, 0.22, color, shape=MSO_SHAPE.RECTANGLE)
+        text(slide, x + 0.55, 3.45, 9.0, 1.0, head, size=19, bold=True, color=color)
+        text(slide, x + 0.55, 4.7, 8.9, 6.6, lines, size=15.5, color=DARK, line_spacing=1.3)
+        text(slide, x + 0.55, 11.7, 8.9, 1.2, evidence, size=12, color=GREY, italic=True)
+    band(slide, 14.2, 1.9, NAVY,
+         "Two OpenZeppelin bases and one require cover the attacks a reviewer will ask about.",
+         size=15)
+    notes(slide,
+          "Part 3, one minute. These are the three questions a defence panel usually asks. Reentrancy: "
+          "all four money paths carry nonReentrant, which is the attack that forked Ethereum in 2016. Pull "
+          "over push: we never transfer to a seller inside buyResale, we credit and let them withdraw, so a "
+          "rejecting contract cannot block a sale. No self-trade: buyResale rejects the seller as buyer, "
+          "test E02 proves it with a real status=0 receipt.")
 
     # ================================================================ PART 4
     section_slide(prs, 4)
@@ -885,15 +933,7 @@ def build() -> Path:
     text(slide, 3.0, 4.0, 27.9, 2.4, "Q & A", size=50, bold=True, color=WHITE)
     text(slide, 3.0, 7.2, 27.9, 1.0, "Thank you - the five parts are ready for questions", size=17,
          color=RGBColor(0x90, 0xCA, 0xF9))
-    facts = [f"Contract {net['contract_address'][:12]}...  -  deploy gas "
-             f"{env['contract']['deploy_gas_used']:,}",
-             f"{s['total_cases']} cases / {s['pass_rate']}% pass rate / "
-             f"{s['on_chain_failed_txs']} real status=0 transactions",
-             "Every number traceable in results/test_evidence.json",
-             "Deliverables: report/final_report.docx, demo/demo_steps.md"]
-    for i, fact in enumerate(facts):
-        text(slide, 3.0, 9.5 + i * 1.5, 27.9, 1.1, "- " + fact, size=13.5,
-             color=RGBColor(0xCF, 0xD8, 0xDC))
+    text(slide, 3.0, 10.9, 23.89, 2.4, "Group 18", size=28, color=RGBColor(0xCF, 0xD8, 0xDC))
     text(slide, 3.0, 16.0, 27.9, 1.0,
          "Part 1 chain  -  Part 2 issuance  -  Part 3 resale  -  Part 4 interface  -  Part 5 evidence",
          size=11.5, color=RGBColor(0x90, 0xCA, 0xF9))
