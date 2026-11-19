@@ -132,7 +132,7 @@ def title_bar(slide, title, kicker=None, part_idx=None, page=None):
         text(slide, 31.4, 18.25, 1.9, 0.7, str(page), size=11, color=GREY, align=PP_ALIGN.RIGHT)
 
 
-def table(slide, x, y, w, headers, rows, col_ratios, font_size=12.5, header_size=12.5,
+def table(slide, x, y, w, headers, rows, col_ratios, font_size=14, header_size=14,
           row_h=1.8, header_fill=NAVY, center_cols=()):
     shape = slide.shapes.add_table(len(rows) + 1, len(headers), Cm(x), Cm(y), Cm(w),
                                    Cm(row_h * (len(rows) + 1)))
@@ -305,7 +305,7 @@ def build() -> Path:
               "Each part ends where the next one begins", page=page)
     body = [[num, title, delivers] for num, title, _s, _c, delivers in PARTS]
     table(slide, MARGIN, 3.0, 30.5, ["Part", "What the part covers", "Delivers to the next part"], body,
-          [1.8, 13.8, 14.9], font_size=12.5, row_h=2.0, center_cols=(0,))
+          [1.8, 13.8, 14.9], font_size=15, row_h=2.0, center_cols=(0,))
     text(slide, MARGIN, 15.6, 30.5, 2.4,
          ["Then: one live end-to-end demo (seven actions) and Q & A.",
           "Every number can be traced to a transaction hash in results/test_evidence.json."],
@@ -398,7 +398,7 @@ def build() -> Path:
             ["check_in", "write", "on-chain check-in"],
             ["get_receipt", "read", "mined? what gas?"]]
     table(slide, MARGIN, 3.9, 15.4, ["Function", "", "What it does"], body,
-          [6.0, 1.8, 7.0], font_size=13, row_h=2.0, center_cols=(1,))
+          [6.0, 1.8, 7.0], font_size=14.5, row_h=2.0, center_cols=(1,))
     text(slide, 17.9, 3.0, 14.2, 0.8, "Every write returns one struct", size=14, bold=True,
          color=BLUE)
     rect(slide, 17.9, 3.9, 14.2, 3.6, LIGHT)
@@ -434,7 +434,7 @@ def build() -> Path:
             ["canPurchase", "read-only pre-check", "used by Part 4"],
             ["withdrawProceeds", "pull payment by organizer", "T01"]]
     table(slide, MARGIN, 3.0, 18.6, ["Function", "Rule in the contract", "Test"], body,
-          [4.4, 10.4, 3.8], font_size=12, row_h=1.85, center_cols=(2,))
+          [4.4, 9.9, 4.3], font_size=13.5, row_h=1.9, center_cols=(2,))
     text(slide, 21.0, 2.95, 11.2, 0.8, "Measured in this run", size=14, bold=True, color=TEAL)
     ev = [["T01", "event created", gas("T01")],
           ["T05a", "2 tickets = the limit", gas("T05a")],
@@ -442,8 +442,8 @@ def build() -> Path:
           ["T06a", "last ticket sold", gas("T06a")],
           ["T06b", "sold out, rejected", gas("T06b")]]
     table(slide, 21.0, 3.85, 11.2, ["Case", "What it proves", "Gas"], ev,
-          [1.8, 6.6, 2.8], font_size=11.5, row_h=1.7, center_cols=(0, 2))
-    text(slide, MARGIN, 14.3, 30.5, 2.8,
+          [1.8, 6.6, 2.8], font_size=13, row_h=1.8, center_cols=(0, 2))
+    text(slide, MARGIN, 14.9, 30.5, 2.6,
          ["T02b is a deliberate deviation: createEvent has no access control, so anyone can create an event.",
           "canPurchase is the read-only pre-check the page calls; T04, T05b and T06b assert the same rules on chain."],
          size=12.5, color=GREY, line_spacing=1.35)
@@ -500,7 +500,7 @@ def build() -> Path:
             ["Resale #1 to #3", "allowed, counter increments", "T07 / T10a"],
             ["A fourth listing", "rejected: max resale limit", "T10b"]]
     table(slide, MARGIN, 3.0, 17.4, ["Condition", "Enforced effect", "Test"], body,
-          [6.2, 8.2, 3.6], font_size=12, row_h=2.05, center_cols=(2,))
+          [6.2, 8.2, 3.6], font_size=13.5, row_h=2.05, center_cols=(2,))
     text(slide, 19.4, 2.95, 12.8, 0.8, "Why it must be time-based", size=14, bold=True, color=NAVY)
     text(slide, 19.4, 3.85, 12.8, 4.6,
          ["A flat 120% cap invites arbitrage:",
@@ -541,8 +541,8 @@ def build() -> Path:
             ["T11b", "safeTransferFrom", "mined, status=0", gas("T11b")],
             ["B02", "same, raw Web3.py", "mined, status=0", gas("B02")]]
     table(slide, MARGIN, 8.7, 15.4, ["Case", "Attempt", "Result", "Gas"], body,
-          [1.6, 6.2, 4.4, 2.8], font_size=12.5, row_h=1.65, center_cols=(0, 2, 3))
-    text(slide, MARGIN, 15.6, 15.4, 2.2,
+          [1.6, 6.2, 4.4, 2.8], font_size=13.5, row_h=1.75, center_cols=(0, 2, 3))
+    text(slide, MARGIN, 16.0, 15.4, 2.4,
          ["Gas is still charged: the transaction exists,",
           "the state did not change."],
          size=13, color=GREY, line_spacing=1.35)
@@ -554,7 +554,7 @@ def build() -> Path:
              ["E09", "check-in while listed", "listing cleared"],
              ["T07b", "5% fee on 1.2 ETH", "0.06 ETH"]]
     table(slide, 18.0, 3.95, 14.2, ["Case", "Action", "Observed"], body2,
-          [2.2, 6.8, 5.2], font_size=11.5, row_h=1.7, center_cols=(0,))
+          [2.2, 6.8, 5.2], font_size=13, row_h=1.8, center_cols=(0,))
     notes(slide,
           "Part 3, three minutes - the heart of the story. Start from the escape hatch: ERC-721 gives "
           "everyone a transfer function, so a cap inside buyResale alone would be theatre. Then the three "
@@ -608,7 +608,7 @@ def build() -> Path:
               ["3", "not expired (180 s)", "T14b"], ["4", "holder == ownerOf", "T14c"],
               ["5", "used is still false", "T15b"]]
     table(slide, 9.4, 7.85, 10.6, ["", "Check", "Case"], checks, [0.9, 6.9, 2.8],
-          font_size=12.5, row_h=1.65, center_cols=(0, 2))
+          font_size=13.5, row_h=1.6, center_cols=(0, 2))
     picture(slide, SHOTS / "06_staff_checkin.png", 20.8, 2.95, w=13.0)
     text(slide, 20.8, 10.2, 13.0, 7.4,
          ["Three attacks, three checks:",
@@ -711,16 +711,16 @@ def build() -> Path:
             ["D01", "stale addresses in network.json", "deployment defect",
              "fixed: derive from the keys"]]
     table(slide, MARGIN, 3.0, 30.5, ["Id", "Finding", "Nature", "Handling"], body,
-          [1.8, 13.0, 5.2, 10.5], font_size=13, row_h=1.9, center_cols=(0, 2))
-    text(slide, MARGIN, 11.2, 14.6, 0.8, "What the chain does not fix", size=15, bold=True, color=RED)
-    text(slide, MARGIN, 12.2, 14.6, 5.8,
+          [1.8, 13.0, 5.2, 10.5], font_size=15, row_h=2.1, center_cols=(0, 2))
+    text(slide, MARGIN, 11.8, 14.6, 0.8, "What the chain does not fix", size=15, bold=True, color=RED)
+    text(slide, MARGIN, 12.8, 14.6, 5.2,
          ["-  one person, many wallets",
           "-  cash top-ups, wallet transfers",
           "-  server-side signing is not user signing",
           "-  one Clique signer is not a trust model"],
          size=13.5, color=DARK, line_spacing=1.4)
-    text(slide, 17.8, 11.2, 14.2, 0.8, "What it does fix", size=15, bold=True, color=GREEN)
-    text(slide, 17.8, 12.2, 14.2, 5.8,
+    text(slide, 17.8, 11.8, 14.2, 0.8, "What it does fix", size=15, bold=True, color=GREEN)
+    text(slide, 17.8, 12.8, 14.2, 5.2,
          ["-  ticket ownership is public state",
           "-  the five rules cannot be bypassed",
           "-  every refusal is an auditable receipt",
